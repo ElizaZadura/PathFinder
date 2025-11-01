@@ -1,42 +1,13 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl } from '../services/geminiService';
 import { UploadIcon, DownloadIcon } from './icons';
-
-const defaultCV = `
-John Doe
-(123) 456-7890 | john.doe@email.com | linkedin.com/in/johndoe
-
-Summary
-Innovative and results-driven Software Engineer with 5+ years of experience in developing and scaling web applications. Proficient in JavaScript, React, and Node.js. Passionate about creating intuitive user interfaces and solving complex problems.
-
-Experience
-Senior Frontend Engineer | Tech Solutions Inc. | 2020 - Present
-- Led the development of a new customer-facing dashboard using React and TypeScript, resulting in a 20% increase in user engagement.
-- Collaborated with a team of 5 engineers to build and maintain a component library, improving development efficiency by 30%.
-- Mentored junior engineers and conducted code reviews.
-
-Software Engineer | Web Innovators | 2018 - 2020
-- Developed and maintained RESTful APIs using Node.js and Express.
-- Contributed to a large-scale single-page application using Angular.
-
-Education
-Bachelor of Science in Computer Science | University of Technology | 2014 - 2018
-`.trim();
 
 const languages = [
   'English', 'Spanish', 'French', 'German', 'Portuguese', 'Italian', 'Dutch', 'Russian', 'Japanese', 'Chinese (Simplified)', 'Korean', 'Arabic'
 ];
 
 const CVTailor: React.FC = () => {
-  const [cv, setCv] = useState<string>(() => {
-    try {
-      const savedCv = localStorage.getItem('userCV');
-      return savedCv ? savedCv : defaultCV;
-    } catch (error) {
-      console.error("Failed to read CV from localStorage", error);
-      return defaultCV;
-    }
-  });
+  const [cv, setCv] = useState<string>(() => localStorage.getItem('userCv') || '');
   const [jobPosting, setJobPosting] = useState<string>('');
   const [jobPostingUrl, setJobPostingUrl] = useState<string>('');
   const [isFetchingUrl, setIsFetchingUrl] = useState<boolean>(false);
@@ -47,14 +18,13 @@ const CVTailor: React.FC = () => {
   const [outputLanguage, setOutputLanguage] = useState<string>('English');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    localStorage.setItem('userCv', cv);
+  }, [cv]);
+
   const handleCvChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newCv = e.target.value;
     setCv(newCv);
-    try {
-      localStorage.setItem('userCV', newCv);
-    } catch (error) {
-      console.error("Failed to save CV to localStorage", error);
-    }
   };
 
   const handleFetchFromUrl = useCallback(async () => {
@@ -114,11 +84,6 @@ const CVTailor: React.FC = () => {
       const text = e.target?.result as string;
       if (text) {
         setCv(text);
-        try {
-          localStorage.setItem('userCV', text);
-        } catch (error) {
-          console.error("Failed to save CV to localStorage", error);
-        }
       }
     };
     reader.onerror = () => {
