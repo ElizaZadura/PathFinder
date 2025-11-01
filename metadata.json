@@ -1,0 +1,7 @@
+{
+  "name": "Gemini CV & Conversation Assistant",
+  "description": "An application to tailor your CV to a job posting and have a real-time conversation with Gemini's Live API.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
