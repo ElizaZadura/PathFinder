@@ -1,20 +1,25 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Gemini CV & Conversation Assistant
 
-# Run and deploy your AI Studio app
+A web application that leverages the Gemini API to help you tailor your CV for specific job applications and practice your interview skills with a real-time voice assistant.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/drive/1oXfxMFSg_mdGz18P2Wuv58AxGBNPqcAu
+-   **CV Tailoring**: Automatically rewrites your CV to highlight the most relevant skills and experience for a given job posting. It also extracts key skills from the job description.
+-   **Live Conversation**: Engage in a real-time, voice-based conversation with Gemini. Perfect for interview practice or general queries.
 
-## Run Locally
+## How to Use
 
-**Prerequisites:**  Node.js
+### CV Tailor
 
+1.  Navigate to the **CV Tailor** tab.
+2.  Paste your current CV into the "Your CV" text area. Your CV is automatically saved in your browser for future visits.
+3.  Provide the job description by either pasting a URL and clicking "Fetch" or pasting the text directly.
+4.  Click the **Tailor My CV** button.
+5.  Your new, tailored CV will appear below, along with extracted keywords. You can then copy it to your clipboard.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Live Chat
+
+1.  Navigate to the **Live Chat** tab.
+2.  Click the microphone icon to start the conversation. You will need to grant microphone permissions.
+3.  Start speaking. The conversation will be transcribed in real-time.
+4.  Click the stop icon to end the session.
