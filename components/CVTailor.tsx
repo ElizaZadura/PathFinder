@@ -133,11 +133,11 @@ const CVTailor: React.FC = () => {
 
   const handleSaveToFile = () => {
     if (!tailoredCv) return;
-    const blob = new Blob([tailoredCv], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([tailoredCv], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'Tailored-CV.txt';
+    link.download = 'Tailored-CV.md';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
