@@ -1,6 +1,6 @@
-
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl } from '../services/geminiService';
+import { UploadIcon, DownloadIcon } from './icons';
 
 const defaultCV = `
 John Doe
@@ -23,6 +23,10 @@ Education
 Bachelor of Science in Computer Science | University of Technology | 2014 - 2018
 `.trim();
 
+const languages = [
+  'English', 'Spanish', 'French', 'German', 'Portuguese', 'Italian', 'Dutch', 'Russian', 'Japanese', 'Chinese (Simplified)', 'Korean', 'Arabic'
+];
+
 const CVTailor: React.FC = () => {
   const [cv, setCv] = useState<string>(() => {
     try {
@@ -40,6 +44,8 @@ const CVTailor: React.FC = () => {
   const [tailoredCv, setTailoredCv] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [outputLanguage, setOutputLanguage] = useState<string>('English');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCvChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newCv = e.target.value;
@@ -80,7 +86,7 @@ const CVTailor: React.FC = () => {
     try {
       const extracted = await extractKeywords(jobPosting);
       setKeywords(extracted);
-      const result = await getTailoredCV(cv, jobPosting);
+      const result = await getTailoredCV(cv, jobPosting, outputLanguage);
       setTailoredCv(result);
     } catch (err) {
       setError('An error occurred while tailoring your CV. Please try again.');
@@ -88,11 +94,54 @@ const CVTailor: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [cv, jobPosting]);
+  }, [cv, jobPosting, outputLanguage]);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(tailoredCv);
     alert('CV copied to clipboard!');
+  };
+
+  const handleLoadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileLoad = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (text) {
+        setCv(text);
+        try {
+          localStorage.setItem('userCV', text);
+        } catch (error) {
+          console.error("Failed to save CV to localStorage", error);
+        }
+      }
+    };
+    reader.onerror = () => {
+        console.error("Failed to read file");
+        setError("Failed to read the selected file.");
+    };
+    reader.readAsText(file);
+    if (event.target) {
+        event.target.value = '';
+    }
+  };
+
+  const handleSaveToFile = () => {
+    if (!tailoredCv) return;
+    const blob = new Blob([tailoredCv], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Tailored-CV.txt';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const commonTextAreaClass = "w-full p-4 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 resize-y";
@@ -101,7 +150,13 @@ const CVTailor: React.FC = () => {
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2 flex flex-col">
-          <label htmlFor="cv-input" className="font-semibold text-gray-300">Your CV</label>
+            <div className="flex justify-between items-center mb-2">
+                 <label htmlFor="cv-input" className="font-semibold text-gray-300">Your CV</label>
+                 <input type="file" ref={fileInputRef} onChange={handleFileLoad} accept=".txt,.md,.text" style={{ display: 'none' }} />
+                 <button onClick={handleLoadClick} className="flex items-center gap-2 px-3 py-1 text-sm bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+                    <UploadIcon className="w-4 h-4" /> Load from File
+                </button>
+            </div>
           <textarea
             id="cv-input"
             value={cv}
@@ -157,7 +212,21 @@ const CVTailor: React.FC = () => {
         </div>
       </div>
       
-      <div className="text-center">
+      <div className="text-center space-y-4">
+        <div>
+            <label htmlFor="language-select" className="block mb-2 text-sm font-medium text-gray-400">Output Language</label>
+            <select
+                id="language-select"
+                value={outputLanguage}
+                onChange={(e) => setOutputLanguage(e.target.value)}
+                className="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full max-w-xs mx-auto p-2.5"
+                aria-label="Select output language"
+            >
+                {languages.map(lang => (
+                    <option key={lang} value={lang}>{lang}</option>
+                ))}
+            </select>
+        </div>
         <button
           onClick={handleTailor}
           disabled={isLoading || !cv || !jobPosting}
@@ -193,7 +262,12 @@ const CVTailor: React.FC = () => {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
              <h2 className="text-2xl font-bold text-gray-100">Your Tailored CV</h2>
-             <button onClick={copyToClipboard} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
+             <div className="flex items-center gap-2">
+                 <button onClick={handleSaveToFile} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+                    <DownloadIcon className="w-4 h-4" /> Save
+                </button>
+                <button onClick={copyToClipboard} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
+             </div>
           </div>
           <div
             className="p-6 bg-gray-800 border border-gray-700 rounded-lg whitespace-pre-wrap font-mono text-sm leading-relaxed"

@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, LiveSession, LiveServerMessage, Modality } from "@google/genai";
 
 // Ensure the API key is available, but do not hardcode it.
@@ -57,12 +56,15 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
   }
 }
 
-export async function getTailoredCV(cv: string, jobPosting: string): Promise<string> {
+export async function getTailoredCV(cv: string, jobPosting: string, language: string): Promise<string> {
   try {
     const prompt = `
       Based on the following resume and job description, please rewrite the resume to highlight the most relevant skills and experiences.
       The goal is to tailor the resume for this specific job application. 
       Maintain a professional tone and structure.
+      
+      IMPORTANT: The final output must be written in **${language}**.
+
       Return only the rewritten resume text, without any additional commentary.
 
       **Original Resume:**
