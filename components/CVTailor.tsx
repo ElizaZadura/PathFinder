@@ -20,6 +20,7 @@ const CVTailor: React.FC = () => {
   const [jobPostingUrl, setJobPostingUrl] = useState<string>('');
   const [isFetchingUrl, setIsFetchingUrl] = useState<boolean>(false);
   const [isFileLoading, setIsFileLoading] = useState<boolean>(false);
+  const [librariesReady, setLibrariesReady] = useState<boolean>(false);
   const [keywords, setKeywords] = useState<string[]>([]);
   const [tailoredCv, setTailoredCv] = useState<string>('');
   const [changesSummary, setChangesSummary] = useState<string[]>([]);
@@ -34,11 +35,29 @@ const CVTailor: React.FC = () => {
     localStorage.setItem('userCv', cv);
   }, [cv]);
   
-  // Set the workerSrc for pdf.js once the component mounts and the script is likely loaded.
+  // Poll for external libraries (pdf.js, mammoth.js) to be loaded before enabling file upload.
   useEffect(() => {
-    if (typeof window.pdfjsLib !== 'undefined') {
+    const checkLibraries = () => {
+      if (window.pdfjsLib && window.mammoth) {
+        // Configure pdf.js worker once the library is confirmed to be loaded.
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js`;
+        setLibrariesReady(true);
+        return true;
+      }
+      return false;
+    };
+
+    if (checkLibraries()) {
+      return; // Libs were already loaded
     }
+
+    const intervalId = setInterval(() => {
+      if (checkLibraries()) {
+        clearInterval(intervalId);
+      }
+    }, 100); // Check every 100ms
+
+    return () => clearInterval(intervalId); // Cleanup on component unmount
   }, []);
 
   const handleCvChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -128,9 +147,7 @@ const CVTailor: React.FC = () => {
         let text = '';
 
         if (fileName.endsWith('.pdf')) {
-            if (typeof window.pdfjsLib === 'undefined') {
-                throw new Error("PDF parsing library has not loaded yet. Please try again in a moment.");
-            }
+            if (!window.pdfjsLib) throw new Error("PDF parsing library is not available.");
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await window.pdfjsLib.getDocument(arrayBuffer).promise;
             const numPages = pdf.numPages;
@@ -143,9 +160,7 @@ const CVTailor: React.FC = () => {
             }
             text = pageTexts.join('\n\n');
         } else if (fileName.endsWith('.docx')) {
-            if (typeof window.mammoth === 'undefined') {
-                throw new Error("DOCX parsing library has not loaded yet. Please try again in a moment.");
-            }
+            if (!window.mammoth) throw new Error("DOCX parsing library is not available.");
             const arrayBuffer = await file.arrayBuffer();
             const result = await window.mammoth.extractRawText({ arrayBuffer });
             text = result.value;
@@ -188,13 +203,13 @@ const CVTailor: React.FC = () => {
             <div className="flex justify-between items-center mb-2">
                  <label htmlFor="cv-input" className="font-semibold text-gray-300">Your CV</label>
                  <input type="file" ref={fileInputRef} onChange={handleFileLoad} accept=".txt,.md,.text,.pdf,.docx" style={{ display: 'none' }} />
-                 <button onClick={handleLoadClick} disabled={isFileLoading} className="flex items-center justify-center w-[140px] gap-2 px-3 py-1 text-sm bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed">
+                 <button onClick={handleLoadClick} disabled={isFileLoading || !librariesReady} className="flex items-center justify-center w-[140px] gap-2 px-3 py-1 text-sm bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed">
                     {isFileLoading ? (
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     ) : (
                         <UploadIcon className="w-4 h-4" />
                     )}
-                    {isFileLoading ? 'Parsing...' : 'Load from File'}
+                    {isFileLoading ? 'Parsing...' : (!librariesReady ? 'Initializing...' : 'Load from File')}
                 </button>
             </div>
           <textarea
