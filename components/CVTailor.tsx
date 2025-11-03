@@ -186,7 +186,7 @@ const CVTailor: React.FC = () => {
   useEffect(() => {
     const checkLibraries = () => {
       if (window.pdfjsLib && window.mammoth) {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js`;
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.js`;
         setLibrariesReady(true);
         return true;
       }
