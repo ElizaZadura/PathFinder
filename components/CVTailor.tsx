@@ -2,13 +2,12 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV } from '../services/geminiService';
 import { UploadIcon, DownloadIcon } from './icons';
 
-// Declare global variables from scripts in index.html
-declare const pdfjsLib: any;
-declare const mammoth: any;
-
-// Set the workerSrc for pdf.js. This is required for it to work correctly.
-if (typeof pdfjsLib !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js`;
+// Extend the Window interface to include the global libraries from scripts in index.html
+declare global {
+  interface Window {
+    pdfjsLib: any;
+    mammoth: any;
+  }
 }
 
 const languages = [
@@ -34,6 +33,13 @@ const CVTailor: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('userCv', cv);
   }, [cv]);
+  
+  // Set the workerSrc for pdf.js once the component mounts and the script is likely loaded.
+  useEffect(() => {
+    if (typeof window.pdfjsLib !== 'undefined') {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js`;
+    }
+  }, []);
 
   const handleCvChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newCv = e.target.value;
@@ -122,21 +128,26 @@ const CVTailor: React.FC = () => {
         let text = '';
 
         if (fileName.endsWith('.pdf')) {
+            if (typeof window.pdfjsLib === 'undefined') {
+                throw new Error("PDF parsing library has not loaded yet. Please try again in a moment.");
+            }
             const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            const pdf = await window.pdfjsLib.getDocument(arrayBuffer).promise;
             const numPages = pdf.numPages;
             const pageTexts = [];
             for (let i = 1; i <= numPages; i++) {
                 const page = await pdf.getPage(i);
                 const textContent = await page.getTextContent();
-                // FIX: Use correct type for textContent.items
                 const pageText = textContent.items.map((item: { str: string }) => item.str).join(' ');
                 pageTexts.push(pageText);
             }
             text = pageTexts.join('\n\n');
         } else if (fileName.endsWith('.docx')) {
+            if (typeof window.mammoth === 'undefined') {
+                throw new Error("DOCX parsing library has not loaded yet. Please try again in a moment.");
+            }
             const arrayBuffer = await file.arrayBuffer();
-            const result = await mammoth.extractRawText({ arrayBuffer });
+            const result = await window.mammoth.extractRawText({ arrayBuffer });
             text = result.value;
         } else { // Handle .txt, .md, etc.
             text = await file.text();
@@ -145,7 +156,7 @@ const CVTailor: React.FC = () => {
         setCv(text);
     } catch (err) {
         console.error("Failed to read file:", err);
-        setError("Failed to read or parse the selected file. It might be corrupted or in an unsupported format.");
+        setError(err instanceof Error ? err.message : "Failed to read or parse the selected file. It might be corrupted or in an unsupported format.");
     } finally {
         setIsFileLoading(false);
         if (event.target) {
