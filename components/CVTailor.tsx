@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance } from '../services/geminiService';
-import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon } from './icons';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, ChevronDownIcon } from './icons';
 import type { ATSReport } from '../types';
 
 // Extend the Window interface to include the global libraries from scripts in index.html
@@ -8,6 +8,8 @@ declare global {
   interface Window {
     pdfjsLib: any;
     mammoth: any;
+    jspdf: any; // For jsPDF
+    docx: any; // For docx
   }
 }
 
@@ -161,12 +163,26 @@ const CVTailor: React.FC = () => {
   const [outputLanguage, setOutputLanguage] = useState<string>('English');
   const [atsReport, setAtsReport] = useState<ATSReport | null>(null);
   const [isCheckingAts, setIsCheckingAts] = useState<boolean>(false);
+  const [isSaveDropdownOpen, setIsSaveDropdownOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const saveDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     localStorage.setItem('userCv', cv);
   }, [cv]);
   
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (saveDropdownRef.current && !saveDropdownRef.current.contains(event.target as Node)) {
+        setIsSaveDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   useEffect(() => {
     const checkLibraries = () => {
       if (window.pdfjsLib && window.mammoth) {
@@ -295,15 +311,66 @@ const CVTailor: React.FC = () => {
 
   const copyToClipboard = () => { navigator.clipboard.writeText(tailoredCv); alert('CV copied to clipboard!'); };
   const handleLoadClick = () => { fileInputRef.current?.click(); };
-  const handleSaveToFile = () => {
+  
+  const handleSaveAsTxt = () => {
     if (!tailoredCv) return;
-    const blob = new Blob([tailoredCv], { type: 'text/markdown;charset=utf-8' });
+    const blob = new Blob([tailoredCv], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'Tailored-CV.md';
+    link.download = 'Tailored-CV.txt';
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    setIsSaveDropdownOpen(false);
+  };
+
+  const handleSaveAsPdf = () => {
+    if (!tailoredCv || !window.jspdf) return;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(11);
+    const margin = 15;
+    const usableWidth = doc.internal.pageSize.getWidth() - margin * 2;
+    const lines = doc.splitTextToSize(tailoredCv, usableWidth);
+    
+    doc.text(lines, margin, margin);
+    
+    doc.save('Tailored-CV.pdf');
+    setIsSaveDropdownOpen(false);
+  };
+
+  const handleSaveAsDocx = () => {
+    if (!tailoredCv || !window.docx) return;
+    const { Document, Packer, Paragraph, TextRun } = window.docx;
+
+    const paragraphs = tailoredCv.split('\n').map(line => 
+      new Paragraph({
+          children: [new TextRun(line)],
+      })
+    );
+
+    const doc = new Document({
+      sections: [{
+          properties: {},
+          children: paragraphs,
+      }],
+    });
+
+    Packer.toBlob(doc).then(blob => {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Tailored-CV.docx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    });
+    setIsSaveDropdownOpen(false);
   };
 
   const commonTextAreaClass = "w-full p-4 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 resize-y";
@@ -382,7 +449,22 @@ const CVTailor: React.FC = () => {
                     <div className="flex justify-between items-center">
                         <h2 className="text-2xl font-bold text-gray-100">Your Tailored CV</h2>
                         <div className="flex items-center gap-2">
-                            <button onClick={handleSaveToFile} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"><DownloadIcon className="w-4 h-4" /> Save</button>
+                            <div className="relative" ref={saveDropdownRef}>
+                                <button onClick={() => setIsSaveDropdownOpen(prev => !prev)} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+                                    <DownloadIcon className="w-4 h-4" />
+                                    <span>Save As...</span>
+                                    <ChevronDownIcon className={`w-4 h-4 transition-transform ${isSaveDropdownOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                {isSaveDropdownOpen && (
+                                    <div className="absolute right-0 mt-2 w-48 bg-gray-700 border border-gray-600 rounded-md shadow-lg z-10">
+                                        <ul className="py-1">
+                                            <li><button onClick={handleSaveAsTxt} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">TXT Document</button></li>
+                                            <li><button onClick={handleSaveAsPdf} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">PDF Document</button></li>
+                                            <li><button onClick={handleSaveAsDocx} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">DOCX Document</button></li>
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
                             <button onClick={copyToClipboard} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
                         </div>
                     </div>
