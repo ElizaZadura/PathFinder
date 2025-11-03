@@ -142,7 +142,7 @@ const ATSReportDisplay: React.FC<{ report: ATSReport }> = ({ report }) => {
 // --- Main CVTailor Component ---
 
 const languages = [
-  'English', 'Spanish', 'French', 'German', 'Portuguese', 'Italian', 'Dutch', 'Russian', 'Japanese', 'Chinese (Simplified)', 'Korean', 'Arabic'
+  'Arabic', 'Chinese (Simplified)', 'Dutch', 'English', 'French', 'German', 'Italian', 'Japanese', 'Korean', 'Portuguese', 'Russian', 'Spanish', 'Swedish'
 ];
 
 const CVTailor: React.FC = () => {
