@@ -2,6 +2,15 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV } from '../services/geminiService';
 import { UploadIcon, DownloadIcon } from './icons';
 
+// Declare global variables from scripts in index.html
+declare const pdfjsLib: any;
+declare const mammoth: any;
+
+// Set the workerSrc for pdf.js. This is required for it to work correctly.
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js`;
+}
+
 const languages = [
   'English', 'Spanish', 'French', 'German', 'Portuguese', 'Italian', 'Dutch', 'Russian', 'Japanese', 'Chinese (Simplified)', 'Korean', 'Arabic'
 ];
@@ -11,6 +20,7 @@ const CVTailor: React.FC = () => {
   const [jobPosting, setJobPosting] = useState<string>('');
   const [jobPostingUrl, setJobPostingUrl] = useState<string>('');
   const [isFetchingUrl, setIsFetchingUrl] = useState<boolean>(false);
+  const [isFileLoading, setIsFileLoading] = useState<boolean>(false);
   const [keywords, setKeywords] = useState<string[]>([]);
   const [tailoredCv, setTailoredCv] = useState<string>('');
   const [changesSummary, setChangesSummary] = useState<string[]>([]);
@@ -100,26 +110,50 @@ const CVTailor: React.FC = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileLoad = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileLoad = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      if (text) {
+    setIsFileLoading(true);
+    setError(null);
+
+    try {
+        const fileName = file.name.toLowerCase();
+        let text = '';
+
+        if (fileName.endsWith('.pdf')) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            const numPages = pdf.numPages;
+            const pageTexts = [];
+            for (let i = 1; i <= numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                // FIX: Use correct type for textContent.items
+                const pageText = textContent.items.map((item: { str: string }) => item.str).join(' ');
+                pageTexts.push(pageText);
+            }
+            text = pageTexts.join('\n\n');
+        } else if (fileName.endsWith('.docx')) {
+            const arrayBuffer = await file.arrayBuffer();
+            const result = await mammoth.extractRawText({ arrayBuffer });
+            text = result.value;
+        } else { // Handle .txt, .md, etc.
+            text = await file.text();
+        }
+
         setCv(text);
-      }
-    };
-    reader.onerror = () => {
-        console.error("Failed to read file");
-        setError("Failed to read the selected file.");
-    };
-    reader.readAsText(file);
-    if (event.target) {
-        event.target.value = '';
+    } catch (err) {
+        console.error("Failed to read file:", err);
+        setError("Failed to read or parse the selected file. It might be corrupted or in an unsupported format.");
+    } finally {
+        setIsFileLoading(false);
+        if (event.target) {
+            event.target.value = ''; // Reset file input to allow re-uploading the same file
+        }
     }
   };
+
 
   const handleSaveToFile = () => {
     if (!tailoredCv) return;
@@ -142,16 +176,21 @@ const CVTailor: React.FC = () => {
         <div className="space-y-2 flex flex-col">
             <div className="flex justify-between items-center mb-2">
                  <label htmlFor="cv-input" className="font-semibold text-gray-300">Your CV</label>
-                 <input type="file" ref={fileInputRef} onChange={handleFileLoad} accept=".txt,.md,.text" style={{ display: 'none' }} />
-                 <button onClick={handleLoadClick} className="flex items-center gap-2 px-3 py-1 text-sm bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
-                    <UploadIcon className="w-4 h-4" /> Load from File
+                 <input type="file" ref={fileInputRef} onChange={handleFileLoad} accept=".txt,.md,.text,.pdf,.docx" style={{ display: 'none' }} />
+                 <button onClick={handleLoadClick} disabled={isFileLoading} className="flex items-center justify-center w-[140px] gap-2 px-3 py-1 text-sm bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed">
+                    {isFileLoading ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    ) : (
+                        <UploadIcon className="w-4 h-4" />
+                    )}
+                    {isFileLoading ? 'Parsing...' : 'Load from File'}
                 </button>
             </div>
           <textarea
             id="cv-input"
             value={cv}
             onChange={handleCvChange}
-            placeholder="Paste your CV here..."
+            placeholder="Paste your CV here, or load a PDF, DOCX, or TXT file."
             className={`${commonTextAreaClass} flex-grow`}
           />
         </div>
@@ -262,8 +301,7 @@ const CVTailor: React.FC = () => {
                                         <h4 className="font-semibold text-md mt-4 mb-2 text-indigo-300">Refinement {index}:</h4>
                                     </>
                                 )}
-                                <div className="text-gray-300 whitespace-pre-wrap text-sm">
-                                    {summary}
+                                <div className="text-gray-300 whitespace-pre-wrap text-sm" dangerouslySetInnerHTML={{ __html: summary.replace(/\\n/g, '<br />') }}>
                                 </div>
                             </div>
                         ))}

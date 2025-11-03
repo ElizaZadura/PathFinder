@@ -1,4 +1,5 @@
-import { GoogleGenAI, Type, LiveSession, LiveServerMessage, Modality } from "@google/genai";
+// FIX: Removed import of non-exported type 'LiveSession'.
+import { GoogleGenAI, Type, LiveServerMessage, Modality } from "@google/genai";
 
 // Ensure the API key is available, but do not hardcode it.
 if (!process.env.API_KEY) {
@@ -185,12 +186,13 @@ export async function extractKeywords(jobPosting: string): Promise<string[]> {
 }
 
 
+// FIX: Removed explicit return type 'Promise<LiveSession>' to allow type inference, as 'LiveSession' is not an exported type.
 export function connectToLiveSession(callbacks: {
     onOpen: () => void;
     onMessage: (message: LiveServerMessage) => Promise<void>;
     onError: (e: ErrorEvent) => void;
     onClose: (e: CloseEvent) => void;
-}): Promise<LiveSession> {
+}) {
   return ai.live.connect({
     model: 'gemini-2.5-flash-native-audio-preview-09-2025',
     callbacks: {

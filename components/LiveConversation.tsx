@@ -1,11 +1,15 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { connectToLiveSession } from '../services/geminiService';
-import type { LiveSession, LiveServerMessage } from '@google/genai';
+// FIX: 'LiveSession' is not exported from '@google/genai', so it is removed from this import.
+import type { LiveServerMessage } from '@google/genai';
 import { Blob } from '@google/genai';
 import { decode, encode, decodeAudioData } from '../utils/audioUtils';
 import type { TranscriptionTurn } from '../types';
 import { MicIcon, StopIcon } from './icons';
+
+// FIX: Infer the LiveSession type from the connectToLiveSession function's return type, as it's not exported from the SDK.
+type LiveSession = Awaited<ReturnType<typeof connectToLiveSession>>;
 
 type ConversationStatus = 'idle' | 'connecting' | 'listening' | 'speaking' | 'error';
 
