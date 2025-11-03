@@ -1,5 +1,6 @@
 // FIX: Removed import of non-exported type 'LiveSession'.
 import { GoogleGenAI, Type, LiveServerMessage, Modality } from "@google/genai";
+import { ATSReport } from '../types';
 
 // Ensure the API key is available, but do not hardcode it.
 if (!process.env.API_KEY) {
@@ -183,6 +184,127 @@ export async function extractKeywords(jobPosting: string): Promise<string[]> {
         console.error("Error extracting keywords:", error);
         return [];
     }
+}
+
+export async function checkATSCompliance(cv: string, jobPosting: string): Promise<ATSReport> {
+  try {
+    const prompt = `
+      You are an expert ATS (Applicant Tracking System) compliance checker for resumes. Your task is to analyze a given resume against a job description and provide a detailed, structured report in JSON format.
+
+      Evaluate the resume based on the following criteria and provide your findings strictly following the JSON schema provided.
+
+      **Criteria:**
+
+      1.  **File / Layout Safety**:
+          *   From the text, infer if the original document might contain ATS-unfriendly elements like tables, columns, icons, images, or special graphical bullets. List any potential issues. If none, the list should be empty.
+
+      2.  **Structure**:
+          *   Check for the presence of these standard sections: "Summary" (or "Objective"), "Experience" (or "Work History"), "Education", and "Skills". List any that are missing.
+          *   Briefly assess if the "Experience" section entries seem to include a company, title, dates, and descriptive bullet points. Provide a one-sentence summary of this check.
+
+      3.  **Keyword Match**:
+          *   Extract the top 10 most important skills, technologies, and qualifications from the job description. For each, indicate if it's a "recommended" keyword to include.
+          *   Count the occurrences of each of these top 10 keywords in the resume. Only list keywords that are actually found.
+          *   Provide an overall "Job-Keyword Alignment" score from 0 (no match) to 5 (excellent match), as a whole number.
+
+      4.  **Formatting Consistency**:
+          *   Based on the text, infer potential formatting inconsistencies. Check for clues of multiple font styles or bullet point styles.
+          *   Check if date formats (e.g., for jobs and education) are consistent (e.g., all "MMM YYYY – MMM YYYY" or "YYYY–YYYY"). List any detected inconsistencies.
+
+      5.  **Metadata Readiness**:
+          *   Suggest an ideal, ATS-friendly filename based on a common pattern like "FirstName-LastName-Role-CV.pdf". You'll have to infer the name and role from the resume. If you cannot infer a name, use "Candidate".
+          *   Analyze the likely placement of contact information (name, email, phone). Warn if it seems to be in a header or footer, as ATS can sometimes miss this. Provide a one-sentence assessment.
+
+      6.  **Final Rating**:
+          *   Provide an overall "ATS-Readability" score from 0 (very poor) to 5 (excellent), as a whole number, considering layout, structure, and formatting.
+
+      **Resume Text:**
+      ${cv}
+
+      **Job Description Text:**
+      ${jobPosting}
+    `;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: prompt,
+        config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    layoutSafety: {
+                        type: Type.OBJECT,
+                        properties: {
+                            issues: { type: Type.ARRAY, items: { type: Type.STRING } }
+                        },
+                        required: ['issues']
+                    },
+                    structure: {
+                        type: Type.OBJECT,
+                        properties: {
+                            missingSections: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            experienceCheck: { type: Type.STRING }
+                        },
+                        required: ['missingSections', 'experienceCheck']
+                    },
+                    keywordMatch: {
+                        type: Type.OBJECT,
+                        properties: {
+                            jobKeywords: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        keyword: { type: Type.STRING },
+                                        recommended: { type: Type.BOOLEAN }
+                                    },
+                                    required: ['keyword', 'recommended']
+                                }
+                            },
+                            cvKeywords: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        keyword: { type: Type.STRING },
+                                        count: { type: Type.INTEGER }
+                                    },
+                                    required: ['keyword', 'count']
+                                }
+                            },
+                            alignmentScore: { type: Type.INTEGER }
+                        },
+                         required: ['jobKeywords', 'cvKeywords', 'alignmentScore']
+                    },
+                    formatting: {
+                        type: Type.OBJECT,
+                        properties: {
+                            issues: { type: Type.ARRAY, items: { type: Type.STRING } }
+                        },
+                        required: ['issues']
+                    },
+                    metadata: {
+                        type: Type.OBJECT,
+                        properties: {
+                            suggestedFilename: { type: Type.STRING },
+                            contactInfoWarning: { type: Type.STRING }
+                        },
+                        required: ['suggestedFilename', 'contactInfoWarning']
+                    },
+                    readabilityScore: { type: Type.INTEGER }
+                },
+                required: ['layoutSafety', 'structure', 'keywordMatch', 'formatting', 'metadata', 'readabilityScore']
+            }
+        }
+    });
+    
+    const result = JSON.parse(response.text);
+    return result as ATSReport;
+  } catch (error) {
+    console.error("Error checking ATS compliance:", error);
+    throw new Error("Failed to check ATS compliance using the Gemini API.");
+  }
 }
 
 

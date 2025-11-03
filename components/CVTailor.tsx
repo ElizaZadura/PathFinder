@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV } from '../services/geminiService';
-import { UploadIcon, DownloadIcon } from './icons';
+import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance } from '../services/geminiService';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon } from './icons';
+import type { ATSReport } from '../types';
 
 // Extend the Window interface to include the global libraries from scripts in index.html
 declare global {
@@ -9,6 +10,135 @@ declare global {
     mammoth: any;
   }
 }
+
+// --- ATS Report Display Component ---
+const ScoreCircle: React.FC<{ score: number; maxScore: number; label: string }> = ({ score, maxScore, label }) => {
+  const radius = 50;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / maxScore) * circumference;
+  const percentage = Math.round((score / maxScore) * 100);
+
+  let colorClass = 'stroke-green-500';
+  if (percentage < 40) colorClass = 'stroke-red-500';
+  else if (percentage < 70) colorClass = 'stroke-yellow-500';
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative w-32 h-32">
+        <svg className="w-full h-full" viewBox="0 0 120 120">
+          <circle
+            className="text-gray-700"
+            strokeWidth="10"
+            stroke="currentColor"
+            fill="transparent"
+            r={radius}
+            cx="60"
+            cy="60"
+          />
+          <circle
+            className={colorClass}
+            strokeWidth="10"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            stroke="currentColor"
+            fill="transparent"
+            r={radius}
+            cx="60"
+            cy="60"
+            transform="rotate(-90 60 60)"
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-3xl font-bold text-white">
+          {score}<span className="text-xl">/{maxScore}</span>
+        </span>
+      </div>
+      <p className="mt-2 text-sm font-semibold text-gray-300">{label}</p>
+    </div>
+  );
+};
+
+const ReportSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <div className="bg-gray-800/50 rounded-lg p-4 h-full">
+    <h4 className="font-semibold text-lg mb-3 text-indigo-400">{title}</h4>
+    <div className="text-gray-300 space-y-2 text-sm">{children}</div>
+  </div>
+);
+
+const ListItem: React.FC<{ icon: 'check' | 'cross' | 'info'; text: string | React.ReactNode }> = ({ icon, text }) => {
+  const icons = {
+    check: <CheckCircleIcon className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />,
+    cross: <XCircleIcon className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />,
+    info: <InfoIcon className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />,
+  };
+  return (
+    <div className="flex items-start gap-2">
+      {icons[icon]}
+      <span>{text}</span>
+    </div>
+  );
+};
+
+const ATSReportDisplay: React.FC<{ report: ATSReport }> = ({ report }) => {
+  const foundKeywords = new Map(report.keywordMatch.cvKeywords.map(k => [k.keyword.toLowerCase(), k.count]));
+
+  return (
+    <div className="space-y-6 mt-6">
+      <h2 className="text-2xl font-bold text-center">ATS Friendliness Report</h2>
+      
+      <div className="flex justify-center items-center gap-8 flex-wrap p-4 bg-gray-800 rounded-lg">
+        <ScoreCircle score={report.readabilityScore} maxScore={5} label="ATS Readability" />
+        <ScoreCircle score={report.keywordMatch.alignmentScore} maxScore={5} label="Keyword Alignment" />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ReportSection title="Layout & Formatting">
+          {report.layoutSafety.issues.length === 0 ? (
+            <ListItem icon="check" text="Layout appears simple and ATS-friendly." />
+          ) : (
+            report.layoutSafety.issues.map((issue, i) => <ListItem key={i} icon="cross" text={issue} />)
+          )}
+          {report.formatting.issues.length === 0 ? (
+            <ListItem icon="check" text="Formatting appears consistent." />
+          ) : (
+            report.formatting.issues.map((issue, i) => <ListItem key={i} icon="cross" text={issue} />)
+          )}
+        </ReportSection>
+
+        <ReportSection title="CV Structure">
+          {['Summary', 'Experience', 'Education', 'Skills'].map(section => {
+            const isMissing = report.structure.missingSections.some(s => s.toLowerCase() === section.toLowerCase());
+            return <ListItem key={section} icon={isMissing ? 'cross' : 'check'} text={`${section} section ${isMissing ? 'is missing' : 'is present'}.`} />;
+          })}
+          <ListItem icon="info" text={report.structure.experienceCheck} />
+        </ReportSection>
+
+        <ReportSection title="Metadata & Readiness">
+          <ListItem icon="info" text={<>Suggested filename: <code className="bg-gray-700 p-1 rounded text-xs">{report.metadata.suggestedFilename}</code></>} />
+          <ListItem icon="info" text={report.metadata.contactInfoWarning} />
+        </ReportSection>
+
+        <ReportSection title="Job Keyword Analysis">
+          <ul className="space-y-1">
+            {report.keywordMatch.jobKeywords.map(({ keyword }, i) => {
+              const count = foundKeywords.get(keyword.toLowerCase()) || 0;
+              return (
+                <li key={i} className="flex justify-between items-center p-1 rounded">
+                  <span>{keyword}</span>
+                  <span className={`font-bold px-2 py-0.5 rounded-full text-xs ${count > 0 ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
+                    {count > 0 ? `Found ${count}x` : 'Missing'}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        </ReportSection>
+      </div>
+    </div>
+  );
+};
+
+// --- Main CVTailor Component ---
 
 const languages = [
   'English', 'Spanish', 'French', 'German', 'Portuguese', 'Italian', 'Dutch', 'Russian', 'Japanese', 'Chinese (Simplified)', 'Korean', 'Arabic'
@@ -29,17 +159,17 @@ const CVTailor: React.FC = () => {
   const [refinementRequest, setRefinementRequest] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [outputLanguage, setOutputLanguage] = useState<string>('English');
+  const [atsReport, setAtsReport] = useState<ATSReport | null>(null);
+  const [isCheckingAts, setIsCheckingAts] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     localStorage.setItem('userCv', cv);
   }, [cv]);
   
-  // Poll for external libraries (pdf.js, mammoth.js) to be loaded before enabling file upload.
   useEffect(() => {
     const checkLibraries = () => {
       if (window.pdfjsLib && window.mammoth) {
-        // Configure pdf.js worker once the library is confirmed to be loaded.
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js`;
         setLibrariesReady(true);
         return true;
@@ -47,35 +177,20 @@ const CVTailor: React.FC = () => {
       return false;
     };
 
-    if (checkLibraries()) {
-      return; // Libs were already loaded
-    }
-
-    const intervalId = setInterval(() => {
-      if (checkLibraries()) {
-        clearInterval(intervalId);
-      }
-    }, 100); // Check every 100ms
-
-    return () => clearInterval(intervalId); // Cleanup on component unmount
+    if (checkLibraries()) return;
+    const intervalId = setInterval(() => { if (checkLibraries()) clearInterval(intervalId); }, 100);
+    return () => clearInterval(intervalId);
   }, []);
-
-  const handleCvChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newCv = e.target.value;
-    setCv(newCv);
-  };
 
   const handleFetchFromUrl = useCallback(async () => {
     if (!jobPostingUrl) return;
-
     setIsFetchingUrl(true);
     setError(null);
     try {
       const description = await getJobDescriptionFromUrl(jobPostingUrl);
       setJobPosting(description);
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch and parse job description from URL. Please paste the content manually.');
-      console.error(err);
+      setError(err.message || 'Failed to fetch and parse job description from URL.');
     } finally {
       setIsFetchingUrl(false);
     }
@@ -91,6 +206,7 @@ const CVTailor: React.FC = () => {
     setTailoredCv('');
     setKeywords([]);
     setChangesSummary([]);
+    setAtsReport(null);
 
     try {
       const extracted = await extractKeywords(jobPosting);
@@ -100,7 +216,6 @@ const CVTailor: React.FC = () => {
       setChangesSummary([result.changesSummary]);
     } catch (err) {
       setError('An error occurred while tailoring your CV. Please try again.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -113,74 +228,73 @@ const CVTailor: React.FC = () => {
     }
     setIsRefining(true);
     setError(null);
+    setAtsReport(null);
     try {
       const result = await refineCV(cv, jobPosting, tailoredCv, refinementRequest, outputLanguage);
       setTailoredCv(result.tailoredCv);
       setChangesSummary(prev => [...prev, result.changesSummary]);
-      setRefinementRequest(''); // Clear input on success
+      setRefinementRequest('');
     } catch (err) {
       setError('An error occurred while refining your CV. Please try again.');
-      console.error(err);
     } finally {
       setIsRefining(false);
     }
   }, [refinementRequest, tailoredCv, cv, jobPosting, outputLanguage]);
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(tailoredCv);
-    alert('CV copied to clipboard!');
-  };
-
-  const handleLoadClick = () => {
-    fileInputRef.current?.click();
-  };
+  const handleAtsCheck = useCallback(async () => {
+    if (!tailoredCv || !jobPosting) {
+      setError('Please tailor a CV first before checking ATS compliance.');
+      return;
+    }
+    setIsCheckingAts(true);
+    setAtsReport(null);
+    setError(null);
+    try {
+      const result = await checkATSCompliance(tailoredCv, jobPosting);
+      setAtsReport(result);
+    } catch (err) {
+      setError('An error occurred while checking ATS compliance. Please try again.');
+    } finally {
+      setIsCheckingAts(false);
+    }
+  }, [tailoredCv, jobPosting]);
 
   const handleFileLoad = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     setIsFileLoading(true);
     setError(null);
-
     try {
         const fileName = file.name.toLowerCase();
         let text = '';
-
         if (fileName.endsWith('.pdf')) {
-            if (!window.pdfjsLib) throw new Error("PDF parsing library is not available.");
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await window.pdfjsLib.getDocument(arrayBuffer).promise;
-            const numPages = pdf.numPages;
             const pageTexts = [];
-            for (let i = 1; i <= numPages; i++) {
+            for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
                 const textContent = await page.getTextContent();
-                const pageText = textContent.items.map((item: { str: string }) => item.str).join(' ');
-                pageTexts.push(pageText);
+                pageTexts.push(textContent.items.map((item: { str: string }) => item.str).join(' '));
             }
             text = pageTexts.join('\n\n');
         } else if (fileName.endsWith('.docx')) {
-            if (!window.mammoth) throw new Error("DOCX parsing library is not available.");
             const arrayBuffer = await file.arrayBuffer();
             const result = await window.mammoth.extractRawText({ arrayBuffer });
             text = result.value;
-        } else { // Handle .txt, .md, etc.
+        } else {
             text = await file.text();
         }
-
         setCv(text);
     } catch (err) {
-        console.error("Failed to read file:", err);
-        setError(err instanceof Error ? err.message : "Failed to read or parse the selected file. It might be corrupted or in an unsupported format.");
+        setError(err instanceof Error ? err.message : "Failed to read or parse the selected file.");
     } finally {
         setIsFileLoading(false);
-        if (event.target) {
-            event.target.value = ''; // Reset file input to allow re-uploading the same file
-        }
+        if (event.target) event.target.value = '';
     }
   };
 
-
+  const copyToClipboard = () => { navigator.clipboard.writeText(tailoredCv); alert('CV copied to clipboard!'); };
+  const handleLoadClick = () => { fileInputRef.current?.click(); };
   const handleSaveToFile = () => {
     if (!tailoredCv) return;
     const blob = new Blob([tailoredCv], { type: 'text/markdown;charset=utf-8' });
@@ -188,9 +302,7 @@ const CVTailor: React.FC = () => {
     const link = document.createElement('a');
     link.href = url;
     link.download = 'Tailored-CV.md';
-    document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
@@ -204,65 +316,26 @@ const CVTailor: React.FC = () => {
                  <label htmlFor="cv-input" className="font-semibold text-gray-300">Your CV</label>
                  <input type="file" ref={fileInputRef} onChange={handleFileLoad} accept=".txt,.md,.text,.pdf,.docx" style={{ display: 'none' }} />
                  <button onClick={handleLoadClick} disabled={isFileLoading || !librariesReady} className="flex items-center justify-center w-[140px] gap-2 px-3 py-1 text-sm bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed">
-                    {isFileLoading ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    ) : (
-                        <UploadIcon className="w-4 h-4" />
-                    )}
+                    {isFileLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <UploadIcon className="w-4 h-4" />}
                     {isFileLoading ? 'Parsing...' : (!librariesReady ? 'Initializing...' : 'Load from File')}
                 </button>
             </div>
-          <textarea
-            id="cv-input"
-            value={cv}
-            onChange={handleCvChange}
-            placeholder="Paste your CV here, or load a PDF, DOCX, or TXT file."
-            className={`${commonTextAreaClass} flex-grow`}
-          />
+          <textarea id="cv-input" value={cv} onChange={(e) => setCv(e.target.value)} placeholder="Paste your CV here, or load a PDF, DOCX, or TXT file." className={`${commonTextAreaClass} flex-grow`} />
         </div>
         <div className="flex flex-col gap-4">
             <div className="space-y-2">
-                <label htmlFor="job-posting-url-input" className="font-semibold text-gray-300">
-                Job Posting URL
-                </label>
+                <label htmlFor="job-posting-url-input" className="font-semibold text-gray-300">Job Posting URL</label>
                 <div className="flex items-center gap-2">
-                <input
-                    id="job-posting-url-input"
-                    type="url"
-                    value={jobPostingUrl}
-                    onChange={(e) => setJobPostingUrl(e.target.value)}
-                    placeholder="https://www.linkedin.com/jobs/view/..."
-                    className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
-                    aria-label="Job Posting URL"
-                />
-                <button
-                    onClick={handleFetchFromUrl}
-                    disabled={isFetchingUrl || !jobPostingUrl.startsWith('http')}
-                    className="flex-shrink-0 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 h-[50px] w-[110px] flex items-center justify-center"
-                    aria-label="Fetch job description from URL"
-                >
-                    {isFetchingUrl ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    ) : (
-                    'Fetch'
-                    )}
+                <input id="job-posting-url-input" type="url" value={jobPostingUrl} onChange={(e) => setJobPostingUrl(e.target.value)} placeholder="https://www.linkedin.com/jobs/view/..." className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                <button onClick={handleFetchFromUrl} disabled={isFetchingUrl || !jobPostingUrl.startsWith('http')} className="flex-shrink-0 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all h-[50px] w-[110px] flex items-center justify-center">
+                    {isFetchingUrl ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : 'Fetch'}
                 </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                 Pasting a URL may not always work due to site restrictions (CORS). If it fails, please paste the text below.
-                </p>
+                <p className="text-xs text-gray-500 mt-1">Pasting a URL may not always work due to site restrictions (CORS). If it fails, please paste the text below.</p>
             </div>
             <div className="space-y-2 flex-grow flex flex-col">
-                <label htmlFor="job-posting-input" className="font-semibold text-gray-300">
-                Job Posting Text
-                </label>
-                <textarea
-                id="job-posting-input"
-                value={jobPosting}
-                onChange={(e) => setJobPosting(e.target.value)}
-                placeholder="...or paste the job description text directly here."
-                className={`${commonTextAreaClass} flex-grow`}
-                />
+                <label htmlFor="job-posting-input" className="font-semibold text-gray-300">Job Posting Text</label>
+                <textarea id="job-posting-input" value={jobPosting} onChange={(e) => setJobPosting(e.target.value)} placeholder="...or paste the job description text directly here." className={`${commonTextAreaClass} flex-grow`} />
             </div>
         </div>
       </div>
@@ -270,23 +343,11 @@ const CVTailor: React.FC = () => {
       <div className="text-center space-y-4">
         <div>
             <label htmlFor="language-select" className="block mb-2 text-sm font-medium text-gray-400">Output Language</label>
-            <select
-                id="language-select"
-                value={outputLanguage}
-                onChange={(e) => setOutputLanguage(e.target.value)}
-                className="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full max-w-xs mx-auto p-2.5"
-                aria-label="Select output language"
-            >
-                {languages.map(lang => (
-                    <option key={lang} value={lang}>{lang}</option>
-                ))}
+            <select id="language-select" value={outputLanguage} onChange={(e) => setOutputLanguage(e.target.value)} className="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full max-w-xs mx-auto p-2.5">
+                {languages.map(lang => <option key={lang} value={lang}>{lang}</option>)}
             </select>
         </div>
-        <button
-          onClick={handleTailor}
-          disabled={isLoading || !cv || !jobPosting}
-          className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-lg hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500"
-        >
+        <button onClick={handleTailor} disabled={isLoading || !cv || !jobPosting} className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-lg hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500">
           {isLoading ? 'Tailoring...' : 'Tailor My CV'}
         </button>
       </div>
@@ -305,33 +366,14 @@ const CVTailor: React.FC = () => {
             {keywords.length > 0 && (
                 <div className="p-4 bg-gray-800/50 rounded-lg">
                 <h3 className="font-semibold text-lg mb-3 text-indigo-400">Extracted Keywords:</h3>
-                <div className="flex flex-wrap gap-2">
-                    {keywords.map((keyword, index) => (
-                    <span key={index} className="px-3 py-1 bg-gray-700 text-gray-200 text-sm rounded-full">
-                        {keyword}
-                    </span>
-                    ))}
-                </div>
+                <div className="flex flex-wrap gap-2">{keywords.map((keyword, index) => <span key={index} className="px-3 py-1 bg-gray-700 text-gray-200 text-sm rounded-full">{keyword}</span>)}</div>
                 </div>
             )}
 
             {changesSummary.length > 0 && (
                 <div className="p-4 bg-gray-800/50 rounded-lg">
                     <h3 className="font-semibold text-lg mb-3 text-indigo-400">Summary of Changes:</h3>
-                    <div className="space-y-4">
-                        {changesSummary.map((summary, index) => (
-                            <div key={index}>
-                                {index > 0 && (
-                                    <>
-                                        <hr className="my-4 border-gray-700" />
-                                        <h4 className="font-semibold text-md mt-4 mb-2 text-indigo-300">Refinement {index}:</h4>
-                                    </>
-                                )}
-                                <div className="text-gray-300 whitespace-pre-wrap text-sm" dangerouslySetInnerHTML={{ __html: summary.replace(/\\n/g, '<br />') }}>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <div className="space-y-4">{changesSummary.map((summary, index) => ( <div key={index}> {index > 0 && <><hr className="my-4 border-gray-700" /><h4 className="font-semibold text-md mt-4 mb-2 text-indigo-300">Refinement {index}:</h4></>} <div className="text-gray-300 whitespace-pre-wrap text-sm" dangerouslySetInnerHTML={{ __html: summary.replace(/\\n/g, '<br />') }}></div> </div> ))}</div>
                 </div>
             )}
 
@@ -340,37 +382,33 @@ const CVTailor: React.FC = () => {
                     <div className="flex justify-between items-center">
                         <h2 className="text-2xl font-bold text-gray-100">Your Tailored CV</h2>
                         <div className="flex items-center gap-2">
-                            <button onClick={handleSaveToFile} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
-                                <DownloadIcon className="w-4 h-4" /> Save
-                            </button>
+                            <button onClick={handleSaveToFile} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"><DownloadIcon className="w-4 h-4" /> Save</button>
                             <button onClick={copyToClipboard} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
                         </div>
                     </div>
-                    <div
-                        className="p-6 bg-gray-800 border border-gray-700 rounded-lg whitespace-pre-wrap font-mono text-sm leading-relaxed"
-                    >
-                        {tailoredCv}
+                    <div className="p-6 bg-gray-800 border border-gray-700 rounded-lg whitespace-pre-wrap font-mono text-sm leading-relaxed">{tailoredCv}</div>
+                    
+                    <div className="text-center pt-4">
+                        <button onClick={handleAtsCheck} disabled={isCheckingAts} className="px-6 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center min-w-[220px] mx-auto">
+                            {isCheckingAts ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : 'Analyze ATS Friendliness'}
+                        </button>
                     </div>
+
+                    {isCheckingAts && (
+                        <div className="text-center py-4">
+                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-400 mx-auto"></div>
+                            <p className="mt-3 text-gray-400">Analyzing your tailored CV...</p>
+                        </div>
+                    )}
+
+                    {atsReport && <ATSReportDisplay report={atsReport} />}
+
                     <div className="p-4 bg-gray-800/50 rounded-lg mt-6">
                         <h3 className="font-semibold text-lg mb-3 text-indigo-400">Need Changes? Ask Gemini.</h3>
-                        <textarea
-                            value={refinementRequest}
-                            onChange={(e) => setRefinementRequest(e.target.value)}
-                            placeholder="e.g., 'Make the summary more concise' or 'Add a section for my certifications'"
-                            className={`${commonTextAreaClass} h-24`}
-                            aria-label="Refinement request"
-                        />
+                        <textarea value={refinementRequest} onChange={(e) => setRefinementRequest(e.target.value)} placeholder="e.g., 'Make the summary more concise' or 'Add a section for my certifications'" className={`${commonTextAreaClass} h-24`} />
                         <div className="text-right mt-2">
-                            <button
-                                onClick={handleRefine}
-                                disabled={isRefining || !refinementRequest}
-                                className="px-6 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center min-w-[120px] ml-auto"
-                            >
-                                {isRefining ? (
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                ) : (
-                                    'Refine CV'
-                                )}
+                            <button onClick={handleRefine} disabled={isRefining || !refinementRequest} className="px-6 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center min-w-[120px] ml-auto">
+                                {isRefining ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : 'Refine CV'}
                             </button>
                         </div>
                     </div>
