@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl } from '../services/geminiService';
+import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV } from '../services/geminiService';
 import { UploadIcon, DownloadIcon } from './icons';
 
 const languages = [
@@ -15,6 +15,8 @@ const CVTailor: React.FC = () => {
   const [tailoredCv, setTailoredCv] = useState<string>('');
   const [changesSummary, setChangesSummary] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isRefining, setIsRefining] = useState<boolean>(false);
+  const [refinementRequest, setRefinementRequest] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [outputLanguage, setOutputLanguage] = useState<string>('English');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -68,6 +70,26 @@ const CVTailor: React.FC = () => {
       setIsLoading(false);
     }
   }, [cv, jobPosting, outputLanguage]);
+  
+  const handleRefine = useCallback(async () => {
+    if (!refinementRequest || !tailoredCv) {
+      setError('Please provide a refinement request.');
+      return;
+    }
+    setIsRefining(true);
+    setError(null);
+    try {
+      const result = await refineCV(cv, jobPosting, tailoredCv, refinementRequest, outputLanguage);
+      setTailoredCv(result.tailoredCv);
+      setChangesSummary(result.changesSummary);
+      setRefinementRequest(''); // Clear input on success
+    } catch (err) {
+      setError('An error occurred while refining your CV. Please try again.');
+      console.error(err);
+    } finally {
+      setIsRefining(false);
+    }
+  }, [refinementRequest, tailoredCv, cv, jobPosting, outputLanguage]);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(tailoredCv);
@@ -239,20 +261,43 @@ const CVTailor: React.FC = () => {
 
             {tailoredCv && (
                 <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-100">Your Tailored CV</h2>
-                    <div className="flex items-center gap-2">
-                        <button onClick={handleSaveToFile} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
-                            <DownloadIcon className="w-4 h-4" /> Save
-                        </button>
-                        <button onClick={copyToClipboard} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-bold text-gray-100">Your Tailored CV</h2>
+                        <div className="flex items-center gap-2">
+                            <button onClick={handleSaveToFile} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+                                <DownloadIcon className="w-4 h-4" /> Save
+                            </button>
+                            <button onClick={copyToClipboard} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
+                        </div>
                     </div>
-                </div>
-                <div
-                    className="p-6 bg-gray-800 border border-gray-700 rounded-lg whitespace-pre-wrap font-mono text-sm leading-relaxed"
-                >
-                    {tailoredCv}
-                </div>
+                    <div
+                        className="p-6 bg-gray-800 border border-gray-700 rounded-lg whitespace-pre-wrap font-mono text-sm leading-relaxed"
+                    >
+                        {tailoredCv}
+                    </div>
+                    <div className="p-4 bg-gray-800/50 rounded-lg mt-6">
+                        <h3 className="font-semibold text-lg mb-3 text-indigo-400">Need Changes? Ask Gemini.</h3>
+                        <textarea
+                            value={refinementRequest}
+                            onChange={(e) => setRefinementRequest(e.target.value)}
+                            placeholder="e.g., 'Make the summary more concise' or 'Add a section for my certifications'"
+                            className={`${commonTextAreaClass} h-24`}
+                            aria-label="Refinement request"
+                        />
+                        <div className="text-right mt-2">
+                            <button
+                                onClick={handleRefine}
+                                disabled={isRefining || !refinementRequest}
+                                className="px-6 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center min-w-[120px] ml-auto"
+                            >
+                                {isRefining ? (
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                ) : (
+                                    'Refine CV'
+                                )}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

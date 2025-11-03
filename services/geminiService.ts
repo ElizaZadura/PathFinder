@@ -100,6 +100,59 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
   }
 }
 
+export async function refineCV(cv: string, jobPosting: string, currentTailoredCv: string, refinementRequest: string, language: string): Promise<{ tailoredCv: string; changesSummary: string; }> {
+    try {
+        const prompt = `
+        You are an expert resume editor. Your task is to refine an already tailored resume based on a user's specific request.
+
+        You will be given the original resume, the job description it was tailored for, the current version of the tailored resume, and a refinement request from the user.
+
+        Your goal is to apply the changes from the refinement request to the "Current Tailored Resume". Do not start from scratch from the original resume. The output must be in **${language}**.
+
+        After refining the resume, provide a brief summary of the specific changes you just made based on the user's request. Present this summary as a markdown list of bullet points.
+
+        **Original Resume:**
+        ${cv}
+
+        **Job Description:**
+        ${jobPosting}
+
+        **Current Tailored Resume:**
+        ${currentTailoredCv}
+
+        **User's Refinement Request:**
+        ${refinementRequest}
+        `;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-pro',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        tailoredCv: {
+                            type: Type.STRING,
+                            description: "The full, rewritten and tailored resume text reflecting the user's refinement request."
+                        },
+                        changesSummary: {
+                            type: Type.STRING,
+                            description: "A summary of the specific changes just made based on the user's request, formatted as a markdown list."
+                        }
+                    }
+                }
+            }
+        });
+        
+        const result = JSON.parse(response.text);
+        return result;
+    } catch (error) {
+        console.error("Error refining CV:", error);
+        throw new Error("Failed to refine CV using the Gemini API.");
+    }
+}
+
 export async function extractKeywords(jobPosting: string): Promise<string[]> {
     try {
         const response = await ai.models.generateContent({
