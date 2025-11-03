@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance } from '../services/geminiService';
-import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, ChevronDownIcon } from './icons';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, ChevronDownIcon, TrashIcon } from './icons';
 import type { ATSReport } from '../types';
 
 // Extend the Window interface to include the global libraries from scripts in index.html
@@ -297,6 +297,10 @@ const CVTailor: React.FC = () => {
     }
   };
 
+  const handleClearCv = () => {
+    setCv('');
+  };
+
   const copyToClipboard = () => { navigator.clipboard.writeText(tailoredCv); alert('CV copied to clipboard!'); };
   const handleLoadClick = () => { fileInputRef.current?.click(); };
   
@@ -369,11 +373,17 @@ const CVTailor: React.FC = () => {
         <div className="space-y-2 flex flex-col">
             <div className="flex justify-between items-center mb-2">
                  <label htmlFor="cv-input" className="font-semibold text-gray-300">Your CV</label>
-                 <input type="file" ref={fileInputRef} onChange={handleFileLoad} accept=".txt,.md,.text,.docx" style={{ display: 'none' }} />
-                 <button onClick={handleLoadClick} disabled={isFileLoading || !librariesReady} className="flex items-center justify-center w-[140px] gap-2 px-3 py-1 text-sm bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed">
-                    {isFileLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <UploadIcon className="w-4 h-4" />}
-                    {isFileLoading ? 'Parsing...' : (!librariesReady ? 'Initializing...' : 'Load from File')}
-                </button>
+                 <div className="flex items-center gap-2">
+                    <button onClick={handleClearCv} disabled={!cv} title="Clear CV text" className="flex items-center gap-1.5 px-3 py-1 text-sm bg-gray-700 text-red-400 font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <TrashIcon className="w-4 h-4" />
+                        <span>Clear</span>
+                    </button>
+                    <input type="file" ref={fileInputRef} onChange={handleFileLoad} accept=".txt,.md,.text,.docx" style={{ display: 'none' }} />
+                    <button onClick={handleLoadClick} disabled={isFileLoading || !librariesReady} className="flex items-center justify-center w-[140px] gap-2 px-3 py-1 text-sm bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed">
+                        {isFileLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <UploadIcon className="w-4 h-4" />}
+                        {isFileLoading ? 'Parsing...' : (!librariesReady ? 'Initializing...' : 'Load from File')}
+                    </button>
+                 </div>
             </div>
           <textarea id="cv-input" value={cv} onChange={(e) => setCv(e.target.value)} placeholder="Paste your CV here, or load a DOCX or TXT file." className={`${commonTextAreaClass} flex-grow`} />
         </div>
