@@ -56,16 +56,13 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
   }
 }
 
-export async function getTailoredCV(cv: string, jobPosting: string, language: string): Promise<string> {
+export async function getTailoredCV(cv: string, jobPosting: string, language: string): Promise<{ tailoredCv: string; changesSummary: string; }> {
   try {
     const prompt = `
-      Based on the following resume and job description, please rewrite the resume to highlight the most relevant skills and experiences.
-      The goal is to tailor the resume for this specific job application. 
-      Maintain a professional tone and structure.
-      
-      IMPORTANT: The final output must be written in **${language}**.
+      Based on the following resume and job description, please rewrite the resume to highlight the most relevant skills and experiences for this specific job application.
+      Maintain a professional tone and structure. The final rewritten resume must be in **${language}**.
 
-      Return only the rewritten resume text, without any additional commentary.
+      After rewriting the resume, provide a brief summary of the key changes you made. Present this summary as a markdown list of bullet points.
 
       **Original Resume:**
       ${cv}
@@ -76,10 +73,27 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
 
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-pro',
-        contents: prompt
+        contents: prompt,
+        config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    tailoredCv: {
+                        type: Type.STRING,
+                        description: "The full, rewritten and tailored resume text."
+                    },
+                    changesSummary: {
+                        type: Type.STRING,
+                        description: "A summary of key changes made to the resume, formatted as a markdown list."
+                    }
+                }
+            }
+        }
     });
     
-    return response.text;
+    const result = JSON.parse(response.text);
+    return result;
   } catch (error) {
     console.error("Error tailoring CV:", error);
     throw new Error("Failed to get tailored CV from Gemini API.");

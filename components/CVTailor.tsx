@@ -13,6 +13,7 @@ const CVTailor: React.FC = () => {
   const [isFetchingUrl, setIsFetchingUrl] = useState<boolean>(false);
   const [keywords, setKeywords] = useState<string[]>([]);
   const [tailoredCv, setTailoredCv] = useState<string>('');
+  const [changesSummary, setChangesSummary] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [outputLanguage, setOutputLanguage] = useState<string>('English');
@@ -52,12 +53,14 @@ const CVTailor: React.FC = () => {
     setError(null);
     setTailoredCv('');
     setKeywords([]);
+    setChangesSummary('');
 
     try {
       const extracted = await extractKeywords(jobPosting);
       setKeywords(extracted);
       const result = await getTailoredCV(cv, jobPosting, outputLanguage);
-      setTailoredCv(result);
+      setTailoredCv(result.tailoredCv);
+      setChangesSummary(result.changesSummary);
     } catch (err) {
       setError('An error occurred while tailoring your CV. Please try again.');
       console.error(err);
@@ -210,35 +213,48 @@ const CVTailor: React.FC = () => {
         </div>
       )}
 
-      {keywords.length > 0 && !isLoading && (
-        <div className="p-4 bg-gray-800/50 rounded-lg">
-          <h3 className="font-semibold text-lg mb-3 text-indigo-400">Extracted Keywords:</h3>
-          <div className="flex flex-wrap gap-2">
-            {keywords.map((keyword, index) => (
-              <span key={index} className="px-3 py-1 bg-gray-700 text-gray-200 text-sm rounded-full">
-                {keyword}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      {!isLoading && (keywords.length > 0 || tailoredCv) && (
+        <div className="space-y-6">
+            {keywords.length > 0 && (
+                <div className="p-4 bg-gray-800/50 rounded-lg">
+                <h3 className="font-semibold text-lg mb-3 text-indigo-400">Extracted Keywords:</h3>
+                <div className="flex flex-wrap gap-2">
+                    {keywords.map((keyword, index) => (
+                    <span key={index} className="px-3 py-1 bg-gray-700 text-gray-200 text-sm rounded-full">
+                        {keyword}
+                    </span>
+                    ))}
+                </div>
+                </div>
+            )}
 
-      {tailoredCv && !isLoading && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-             <h2 className="text-2xl font-bold text-gray-100">Your Tailored CV</h2>
-             <div className="flex items-center gap-2">
-                 <button onClick={handleSaveToFile} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
-                    <DownloadIcon className="w-4 h-4" /> Save
-                </button>
-                <button onClick={copyToClipboard} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
-             </div>
-          </div>
-          <div
-            className="p-6 bg-gray-800 border border-gray-700 rounded-lg whitespace-pre-wrap font-mono text-sm leading-relaxed"
-          >
-            {tailoredCv}
-          </div>
+            {changesSummary && (
+                <div className="p-4 bg-gray-800/50 rounded-lg">
+                    <h3 className="font-semibold text-lg mb-3 text-indigo-400">Summary of Changes:</h3>
+                    <div className="text-gray-300 whitespace-pre-wrap text-sm">
+                        {changesSummary}
+                    </div>
+                </div>
+            )}
+
+            {tailoredCv && (
+                <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-100">Your Tailored CV</h2>
+                    <div className="flex items-center gap-2">
+                        <button onClick={handleSaveToFile} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+                            <DownloadIcon className="w-4 h-4" /> Save
+                        </button>
+                        <button onClick={copyToClipboard} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
+                    </div>
+                </div>
+                <div
+                    className="p-6 bg-gray-800 border border-gray-700 rounded-lg whitespace-pre-wrap font-mono text-sm leading-relaxed"
+                >
+                    {tailoredCv}
+                </div>
+                </div>
+            )}
         </div>
       )}
     </div>
