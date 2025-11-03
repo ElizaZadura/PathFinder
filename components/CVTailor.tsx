@@ -13,7 +13,7 @@ const CVTailor: React.FC = () => {
   const [isFetchingUrl, setIsFetchingUrl] = useState<boolean>(false);
   const [keywords, setKeywords] = useState<string[]>([]);
   const [tailoredCv, setTailoredCv] = useState<string>('');
-  const [changesSummary, setChangesSummary] = useState<string>('');
+  const [changesSummary, setChangesSummary] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isRefining, setIsRefining] = useState<boolean>(false);
   const [refinementRequest, setRefinementRequest] = useState<string>('');
@@ -55,14 +55,14 @@ const CVTailor: React.FC = () => {
     setError(null);
     setTailoredCv('');
     setKeywords([]);
-    setChangesSummary('');
+    setChangesSummary([]);
 
     try {
       const extracted = await extractKeywords(jobPosting);
       setKeywords(extracted);
       const result = await getTailoredCV(cv, jobPosting, outputLanguage);
       setTailoredCv(result.tailoredCv);
-      setChangesSummary(result.changesSummary);
+      setChangesSummary([result.changesSummary]);
     } catch (err) {
       setError('An error occurred while tailoring your CV. Please try again.');
       console.error(err);
@@ -81,7 +81,7 @@ const CVTailor: React.FC = () => {
     try {
       const result = await refineCV(cv, jobPosting, tailoredCv, refinementRequest, outputLanguage);
       setTailoredCv(result.tailoredCv);
-      setChangesSummary(result.changesSummary);
+      setChangesSummary(prev => [...prev, result.changesSummary]);
       setRefinementRequest(''); // Clear input on success
     } catch (err) {
       setError('An error occurred while refining your CV. Please try again.');
@@ -250,11 +250,23 @@ const CVTailor: React.FC = () => {
                 </div>
             )}
 
-            {changesSummary && (
+            {changesSummary.length > 0 && (
                 <div className="p-4 bg-gray-800/50 rounded-lg">
                     <h3 className="font-semibold text-lg mb-3 text-indigo-400">Summary of Changes:</h3>
-                    <div className="text-gray-300 whitespace-pre-wrap text-sm">
-                        {changesSummary}
+                    <div className="space-y-4">
+                        {changesSummary.map((summary, index) => (
+                            <div key={index}>
+                                {index > 0 && (
+                                    <>
+                                        <hr className="my-4 border-gray-700" />
+                                        <h4 className="font-semibold text-md mt-4 mb-2 text-indigo-300">Refinement {index}:</h4>
+                                    </>
+                                )}
+                                <div className="text-gray-300 whitespace-pre-wrap text-sm">
+                                    {summary}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
