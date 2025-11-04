@@ -26,3 +26,14 @@ export interface ATSReport {
   };
   readabilityScore: number;
 }
+
+export interface JobData {
+    position: string;
+    companyName: string;
+    salary: string;
+    contact: string;
+    source: string;
+    suggestedCvFilename: string;
+    nextAction: string;
+    notes: string;
+}

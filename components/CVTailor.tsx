@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter } from '../services/geminiService';
-import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon } from './icons';
-import type { ATSReport } from '../types';
+import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter, extractJobDataForCSV } from '../services/geminiService';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon } from './icons';
+import type { ATSReport, JobData } from '../types';
 
 // Extend the Window interface to include the global libraries from scripts in index.html
 declare global {
@@ -166,6 +166,7 @@ const CVTailor: React.FC = () => {
   const [isCheckingAts, setIsCheckingAts] = useState<boolean>(false);
   const [isCvSaveOpen, setIsCvSaveOpen] = useState<boolean>(false);
   const [isClSaveOpen, setIsClSaveOpen] = useState<boolean>(false);
+  const [isExportingCsv, setIsExportingCsv] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cvSaveDropdownRef = useRef<HTMLDivElement>(null);
   const clSaveDropdownRef = useRef<HTMLDivElement>(null);
@@ -326,6 +327,71 @@ const CVTailor: React.FC = () => {
     }
   }, [tailoredCv, jobPosting]);
 
+  const handleExportCsv = useCallback(async () => {
+    if (!cv || !jobPosting) {
+      setError('Please provide both your CV and the job posting to export data.');
+      return;
+    }
+    setIsExportingCsv(true);
+    setError(null);
+    try {
+      const data = await extractJobDataForCSV(cv, jobPosting);
+      
+      const headers = [
+        "Application Date", "Position", "Status", "Salary", 
+        "Reference Link", "Contact", "Source", "CV Path", 
+        "Interview Date", "Next Action", "Notes"
+      ];
+      
+      const escapeCsvField = (field: string | undefined): string => {
+        if (field === undefined || field === null) return '""';
+        const str = String(field);
+        if (str.includes('"')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return `"${str}"`;
+      };
+
+      const applicationDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      const rowData = [
+        applicationDate,
+        data.position,
+        "Applied",
+        data.salary,
+        jobPostingUrl,
+        data.contact,
+        data.source,
+        data.suggestedCvFilename,
+        "", // Interview Date is empty by default
+        data.nextAction,
+        data.notes,
+      ].map(escapeCsvField);
+      
+      const csvContent = [
+        headers.join(','),
+        rowData.join(',')
+      ].join('\n');
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      const filename = `${data.companyName}-${data.position}.csv`.replace(/[^a-zA-Z0-9-.]/g, '_'); // Sanitize filename
+      link.setAttribute("download", filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+    } catch (err) {
+      setError('An error occurred while exporting job data. Please try again.');
+    } finally {
+      setIsExportingCsv(false);
+    }
+  }, [cv, jobPosting, jobPostingUrl]);
+
   const handleFileLoad = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -470,6 +536,9 @@ const CVTailor: React.FC = () => {
             </button>
              <button onClick={handleGenerateCoverLetter} disabled={isGeneratingCoverLetter || !cv || !jobPosting} className="px-8 py-3 bg-teal-600 text-white font-bold rounded-lg shadow-lg hover:bg-teal-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-teal-500 min-w-[220px]">
               {isGeneratingCoverLetter ? 'Generating...' : 'Generate Cover Letter'}
+            </button>
+            <button onClick={handleExportCsv} disabled={isExportingCsv || !cv || !jobPosting} className="px-8 py-3 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-green-500 min-w-[220px] flex items-center justify-center gap-2">
+              {isExportingCsv ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div><span>Exporting...</span></> : <><TableIcon /><span>Export Job Data</span></>}
             </button>
         </div>
       </div>

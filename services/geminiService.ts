@@ -1,6 +1,6 @@
 // FIX: Removed import of non-exported type 'LiveSession'.
 import { GoogleGenAI, Type, LiveServerMessage, Modality } from "@google/genai";
-import { ATSReport } from '../types';
+import { ATSReport, JobData } from '../types';
 
 // Ensure the API key is available, but do not hardcode it.
 if (!process.env.API_KEY) {
@@ -341,6 +341,57 @@ export async function checkATSCompliance(cv: string, jobPosting: string): Promis
   } catch (error) {
     console.error("Error checking ATS compliance:", error);
     throw new Error("Failed to check ATS compliance using the Gemini API.");
+  }
+}
+
+export async function extractJobDataForCSV(cv: string, jobPosting: string): Promise<JobData> {
+  try {
+    const prompt = `
+      You are a meticulous data entry assistant. Your task is to analyze the provided CV and job description to extract specific information for a job application tracking system. Please populate the fields in the provided JSON schema.
+
+      - For 'position', extract the exact job title.
+      - For 'companyName', extract the company that is hiring.
+      - For 'salary', extract any mention of salary or compensation. If not found, return "Empty".
+      - For 'contact', find a hiring manager's name or a contact email. If none, return "Empty".
+      - For 'source', identify the platform where the job was posted (e.g., LinkedIn, Indeed, Company Website). If you cannot determine it from the text, return "Empty".
+      - For 'suggestedCvFilename', create a standard filename like 'FirstName-LastName-Role.pdf' based on the candidate's name from the CV.
+      - For 'nextAction', suggest a simple follow-up action like "Follow up in one week".
+      - For 'notes', write a very brief, one-sentence summary of the job's core responsibility.
+
+      **CV Text:**
+      ${cv}
+
+      **Job Description Text:**
+      ${jobPosting}
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-pro',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            position: { type: Type.STRING, description: 'The job title or position.' },
+            companyName: { type: Type.STRING, description: 'The name of the company.' },
+            salary: { type: Type.STRING, description: 'The salary or salary range mentioned. Return "Empty" if not found.' },
+            contact: { type: Type.STRING, description: 'The contact person or email mentioned. Return "Empty" if not found.' },
+            source: { type: Type.STRING, description: 'The source platform (e.g., LinkedIn, company website). Infer from the job posting text or URL context.' },
+            suggestedCvFilename: { type: Type.STRING, description: 'A suggested filename for the CV, like "FirstName-LastName-Role-CV.pdf". Infer from the CV text.' },
+            nextAction: { type: Type.STRING, description: 'A suggested next action, like "Follow up in one week".' },
+            notes: { type: Type.STRING, description: 'A brief, one-sentence summary of the role.' },
+          },
+          required: ['position', 'companyName', 'salary', 'contact', 'source', 'suggestedCvFilename', 'nextAction', 'notes'],
+        },
+      },
+    });
+
+    const result = JSON.parse(response.text);
+    return result as JobData;
+  } catch (error) {
+    console.error("Error extracting job data for CSV:", error);
+    throw new Error("Failed to extract job data using the Gemini API.");
   }
 }
 
