@@ -9,51 +9,36 @@ if (!process.env.API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
-
-export async function getJobDescriptionFromUrl(url: string, signal: AbortSignal): Promise<string> {
+export async function getJobDescriptionFromUrl(url: string): Promise<string> {
   try {
     if (!url.startsWith('http')) {
       throw new Error("Invalid URL provided.");
     }
-    // 1. Fetch HTML content via CORS proxy
-    const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`, { signal });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch URL content. Status: ${response.status}. The website may be blocking requests.`);
-    }
-    const html = await response.text();
-
-    if (!html) {
-        throw new Error("Fetched content is empty. The page might be client-side rendered and not accessible this way.");
-    }
-
-    // 2. Use Gemini to extract the job description from the HTML
+    
     const prompt = `
-      From the following raw HTML of a webpage, please extract only the text content of the main job description.
+      Please access the following URL and extract the full text content of the main job description.
       Clean it up by removing all HTML tags, scripts, styles, navigation bars, headers, footers, and any other irrelevant content like ads or sidebars.
-      If the page does not appear to contain a job description, respond with "ERROR: No job description found on this page.".
       Return only the clean, plain text of the job description itself.
+      If you cannot access the URL or find a job description, respond with "ERROR: No job description found at this URL.".
 
-      **Raw HTML (first 250kb):**
-      ${html.substring(0, 250000)}
+      URL: ${url}
     `;
 
     const geminiResponse = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
+        config: {
+            tools: [{googleSearch: {}}]
+        }
     });
     
     const resultText = geminiResponse.text;
     if (resultText.startsWith("ERROR:")) {
-        throw new Error(resultText);
+        throw new Error(resultText.replace("ERROR: ", ""));
     }
     
     return resultText;
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-        console.log("URL fetch was aborted by the user.");
-        throw error; // Re-throw so the component can identify it
-    }
     console.error("Error getting job description from URL:", error);
     if (error instanceof Error) {
         throw new Error(`Failed to process the URL: ${error.message}`);

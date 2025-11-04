@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter } from '../services/geminiService';
-import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon } from './icons';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon } from './icons';
 import type { ATSReport } from '../types';
 
 // Extend the Window interface to include the global libraries from scripts in index.html
 declare global {
   interface Window {
     mammoth: any;
+    jspdf: any;
   }
 }
 
@@ -163,8 +164,11 @@ const CVTailor: React.FC = () => {
   const [outputLanguage, setOutputLanguage] = useState<string>('English');
   const [atsReport, setAtsReport] = useState<ATSReport | null>(null);
   const [isCheckingAts, setIsCheckingAts] = useState<boolean>(false);
+  const [isCvSaveOpen, setIsCvSaveOpen] = useState<boolean>(false);
+  const [isClSaveOpen, setIsClSaveOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const fetchAbortControllerRef = useRef<AbortController | null>(null);
+  const cvSaveDropdownRef = useRef<HTMLDivElement>(null);
+  const clSaveDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     localStorage.setItem('userCv', cv);
@@ -172,7 +176,7 @@ const CVTailor: React.FC = () => {
 
   useEffect(() => {
     const checkLibraries = () => {
-      if (window.mammoth) {
+      if (window.mammoth && window.jspdf) {
         setLibrariesReady(true);
         return true;
       }
@@ -184,30 +188,40 @@ const CVTailor: React.FC = () => {
     return () => clearInterval(intervalId);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (cvSaveDropdownRef.current && !cvSaveDropdownRef.current.contains(event.target as Node)) {
+        setIsCvSaveOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (clSaveDropdownRef.current && !clSaveDropdownRef.current.contains(event.target as Node)) {
+        setIsClSaveOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const handleFetchFromUrl = useCallback(async () => {
     if (!jobPostingUrl) return;
     
-    fetchAbortControllerRef.current = new AbortController();
     setIsFetchingUrl(true);
     setError(null);
     try {
-      const description = await getJobDescriptionFromUrl(jobPostingUrl, fetchAbortControllerRef.current.signal);
+      const description = await getJobDescriptionFromUrl(jobPostingUrl);
       setJobPosting(description);
     } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        setError(err.message || 'Failed to fetch and parse job description from URL.');
-      }
+      setError(err.message || 'Failed to fetch and parse job description from URL.');
     } finally {
       setIsFetchingUrl(false);
-      fetchAbortControllerRef.current = null;
     }
   }, [jobPostingUrl]);
-
-  const handleStopFetch = () => {
-    if (fetchAbortControllerRef.current) {
-      fetchAbortControllerRef.current.abort();
-    }
-  };
 
   const handleTailor = useCallback(async () => {
     if (!cv || !jobPosting) {
@@ -338,6 +352,37 @@ const CVTailor: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleSaveAsPdf = (content: string, baseFilename: string) => {
+    if (!content || !window.jspdf) return;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const usableWidth = pageWidth - margin * 2;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+
+    const lines = doc.splitTextToSize(content, usableWidth);
+    
+    let cursorY = margin;
+    const lineHeight = 7;
+
+    lines.forEach((line: string) => {
+        if (cursorY + lineHeight > pageHeight - margin) {
+            doc.addPage();
+            cursorY = margin;
+        }
+        doc.text(line, margin, cursorY);
+        cursorY += lineHeight;
+    });
+
+    doc.save(`${baseFilename}.pdf`);
+  };
+
   const commonTextAreaClass = "w-full p-4 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 resize-y";
 
   return (
@@ -366,11 +411,8 @@ const CVTailor: React.FC = () => {
                 <div className="flex items-center gap-2">
                     <input id="job-posting-url-input" type="url" value={jobPostingUrl} onChange={(e) => setJobPostingUrl(e.target.value)} placeholder="https://www.linkedin.com/jobs/view/..." className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
                     {isFetchingUrl ? (
-                        <div className="flex-shrink-0 w-[110px] h-[50px] flex items-center justify-center gap-4 bg-gray-800 border border-gray-700 rounded-lg px-2" aria-label="Fetching job description">
+                        <div className="flex-shrink-0 w-[110px] h-[50px] flex items-center justify-center bg-gray-800 border border-gray-700 rounded-lg" aria-label="Fetching job description">
                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-400"></div>
-                            <button onClick={handleStopFetch} className="p-2 text-gray-400 rounded-lg hover:bg-gray-700 hover:text-white transition-colors" title="Stop">
-                                <StopIcon className="w-5 h-5" />
-                            </button>
                         </div>
                     ) : (
                         <button onClick={handleFetchFromUrl} disabled={!jobPostingUrl.startsWith('http')} className="flex-shrink-0 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all h-[50px] w-[110px] flex items-center justify-center">
@@ -378,7 +420,7 @@ const CVTailor: React.FC = () => {
                         </button>
                     )}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Pasting a URL may not always work due to site restrictions (CORS). If it fails, please paste the text below.</p>
+                <p className="text-xs text-gray-500 mt-1">Gemini will attempt to access the URL. This works for most public job postings. If it fails, please paste the text below.</p>
             </div>
             <div className="space-y-2 flex-grow flex flex-col">
                 <label htmlFor="job-posting-input" className="font-semibold text-gray-300">Job Posting Text</label>
@@ -436,10 +478,24 @@ const CVTailor: React.FC = () => {
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-100">Your Tailored CV</h2>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => handleSaveAsTxt(tailoredCv, 'Tailored-CV')} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
-                    <DownloadIcon className="w-4 h-4" />
-                    <span>Save as TXT</span>
-                  </button>
+                  <div className="relative" ref={cvSaveDropdownRef}>
+                      <button onClick={() => setIsCvSaveOpen(prev => !prev)} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+                          <DownloadIcon className="w-4 h-4" />
+                          <span>Save As...</span>
+                      </button>
+                      {isCvSaveOpen && (
+                          <div className="origin-top-right absolute right-0 mt-2 w-36 rounded-md shadow-lg bg-gray-600 ring-1 ring-black ring-opacity-5 z-10">
+                              <div className="py-1">
+                                  <button onClick={() => { handleSaveAsTxt(tailoredCv, 'Tailored-CV'); setIsCvSaveOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-500">
+                                      Save as TXT
+                                  </button>
+                                  <button onClick={() => { handleSaveAsPdf(tailoredCv, 'Tailored-CV'); setIsCvSaveOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-500">
+                                      Save as PDF
+                                  </button>
+                              </div>
+                          </div>
+                      )}
+                  </div>
                   <button onClick={() => copyToClipboard(tailoredCv, 'CV')} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
                 </div>
               </div>
@@ -487,10 +543,24 @@ const CVTailor: React.FC = () => {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-100">Generated Cover Letter</h2>
               <div className="flex items-center gap-2">
-                <button onClick={() => handleSaveAsTxt(coverLetter, 'Cover-Letter')} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
-                  <DownloadIcon className="w-4 h-4" />
-                  <span>Save as TXT</span>
-                </button>
+                 <div className="relative" ref={clSaveDropdownRef}>
+                      <button onClick={() => setIsClSaveOpen(prev => !prev)} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+                          <DownloadIcon className="w-4 h-4" />
+                          <span>Save As...</span>
+                      </button>
+                      {isClSaveOpen && (
+                          <div className="origin-top-right absolute right-0 mt-2 w-36 rounded-md shadow-lg bg-gray-600 ring-1 ring-black ring-opacity-5 z-10">
+                              <div className="py-1">
+                                  <button onClick={() => { handleSaveAsTxt(coverLetter, 'Cover-Letter'); setIsClSaveOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-500">
+                                      Save as TXT
+                                  </button>
+                                  <button onClick={() => { handleSaveAsPdf(coverLetter, 'Cover-Letter'); setIsClSaveOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-500">
+                                      Save as PDF
+                                  </button>
+                              </div>
+                          </div>
+                      )}
+                  </div>
                 <button onClick={() => copyToClipboard(coverLetter, 'Cover Letter')} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
               </div>
             </div>
