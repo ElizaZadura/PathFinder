@@ -436,111 +436,122 @@ const CVTailor: React.FC = () => {
 
       {error && <div className="text-center p-4 bg-red-900/50 text-red-300 rounded-lg">{error}</div>}
 
-      {(isLoading || isGeneratingCoverLetter) && (
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-400 mx-auto"></div>
-          <p className="mt-4 text-gray-400">Gemini is working its magic...</p>
-        </div>
-      )}
+      <div className="space-y-8 mt-8">
+        {/* CV Section Loading */}
+        {isLoading && (
+          <div className="text-center p-8 bg-gray-800/50 rounded-lg">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-400 mx-auto"></div>
+            <p className="mt-4 text-gray-400">Gemini is tailoring your CV...</p>
+          </div>
+        )}
 
-      {!(isLoading || isGeneratingCoverLetter) && (keywords.length > 0 || tailoredCv || coverLetter) && (
-        <div className="space-y-8">
+        {/* CV Section Content */}
+        {!isLoading && tailoredCv && (
+          <div className="space-y-8">
             {keywords.length > 0 && (
-                <div className="p-4 bg-gray-800/50 rounded-lg">
+              <div className="p-4 bg-gray-800/50 rounded-lg">
                 <h3 className="font-semibold text-lg mb-3 text-indigo-400">Extracted Keywords:</h3>
                 <div className="flex flex-wrap gap-2">{keywords.map((keyword, index) => <span key={index} className="px-3 py-1 bg-gray-700 text-gray-200 text-sm rounded-full">{keyword}</span>)}</div>
-                </div>
+              </div>
             )}
 
             {changesSummary.length > 0 && (
-                <div className="p-4 bg-gray-800/50 rounded-lg">
-                    <h3 className="font-semibold text-lg mb-3 text-indigo-400">Summary of Changes:</h3>
-                    <div className="space-y-4">{changesSummary.map((summary, index) => ( <div key={index}> {index > 0 && <><hr className="my-4 border-gray-700" /><h4 className="font-semibold text-md mt-4 mb-2 text-indigo-300">Refinement {index}:</h4></>} <div className="text-gray-300 whitespace-pre-wrap text-sm" dangerouslySetInnerHTML={{ __html: summary.replace(/\\n/g, '<br />') }}></div> </div> ))}</div>
-                </div>
+              <div className="p-4 bg-gray-800/50 rounded-lg">
+                <h3 className="font-semibold text-lg mb-3 text-indigo-400">Summary of Changes:</h3>
+                <div className="space-y-4">{changesSummary.map((summary, index) => ( <div key={index}> {index > 0 && <><hr className="my-4 border-gray-700" /><h4 className="font-semibold text-md mt-4 mb-2 text-indigo-300">Refinement {index}:</h4></>} <div className="text-gray-300 whitespace-pre-wrap text-sm" dangerouslySetInnerHTML={{ __html: summary.replace(/\\n/g, '<br />') }}></div> </div> ))}</div>
+              </div>
             )}
-
-            {tailoredCv && (
-                <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-bold text-gray-100">Your Tailored CV</h2>
-                        <div className="flex items-center gap-2">
-                            <div className="relative" ref={saveDropdownRef}>
-                                <button onClick={() => setIsSaveDropdownOpen(prev => !prev)} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
-                                    <DownloadIcon className="w-4 h-4" />
-                                    <span>Save As...</span>
-                                    <ChevronDownIcon className={`w-4 h-4 transition-transform ${isSaveDropdownOpen ? 'rotate-180' : ''}`} />
-                                </button>
-                                {isSaveDropdownOpen && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-gray-700 border border-gray-600 rounded-md shadow-lg z-10">
-                                        <ul className="py-1">
-                                            <li><button onClick={() => handleSaveAs(tailoredCv, 'Tailored-CV', 'txt')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">TXT Document</button></li>
-                                            <li><button onClick={() => handleSaveAs(tailoredCv, 'Tailored-CV', 'pdf')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">PDF Document</button></li>
-                                            <li><button onClick={() => handleSaveAs(tailoredCv, 'Tailored-CV', 'docx')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">DOCX Document</button></li>
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
-                            <button onClick={() => copyToClipboard(tailoredCv, 'CV')} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
-                        </div>
-                    </div>
-                    <div className="p-6 bg-gray-800 border border-gray-700 rounded-lg whitespace-pre-wrap font-mono text-sm leading-relaxed">{tailoredCv}</div>
-                    
-                    <div className="text-center pt-4">
-                        <button onClick={handleAtsCheck} disabled={isCheckingAts} className="px-6 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center min-w-[220px] mx-auto">
-                            {isCheckingAts ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : 'Analyze ATS Friendliness'}
-                        </button>
-                    </div>
-
-                    {isCheckingAts && (
-                        <div className="text-center py-4">
-                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-400 mx-auto"></div>
-                            <p className="mt-3 text-gray-400">Analyzing your tailored CV...</p>
-                        </div>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-100">Your Tailored CV</h2>
+                <div className="flex items-center gap-2">
+                  <div className="relative" ref={saveDropdownRef}>
+                    <button onClick={() => setIsSaveDropdownOpen(prev => !prev)} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+                      <DownloadIcon className="w-4 h-4" />
+                      <span>Save As...</span>
+                      <ChevronDownIcon className={`w-4 h-4 transition-transform ${isSaveDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isSaveDropdownOpen && (
+                      <div className="absolute right-0 mt-2 w-48 bg-gray-700 border border-gray-600 rounded-md shadow-lg z-10">
+                        <ul className="py-1">
+                          <li><button onClick={() => handleSaveAs(tailoredCv, 'Tailored-CV', 'txt')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">TXT Document</button></li>
+                          <li><button onClick={() => handleSaveAs(tailoredCv, 'Tailored-CV', 'pdf')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">PDF Document</button></li>
+                          <li><button onClick={() => handleSaveAs(tailoredCv, 'Tailored-CV', 'docx')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">DOCX Document</button></li>
+                        </ul>
+                      </div>
                     )}
-
-                    {atsReport && <ATSReportDisplay report={atsReport} />}
-
-                    <div className="p-4 bg-gray-800/50 rounded-lg mt-6">
-                        <h3 className="font-semibold text-lg mb-3 text-indigo-400">Need Changes? Ask Gemini.</h3>
-                        <textarea value={refinementRequest} onChange={(e) => setRefinementRequest(e.target.value)} placeholder="e.g., 'Make the summary more concise' or 'Add a section for my certifications'" className={`${commonTextAreaClass} h-24`} />
-                        <div className="text-right mt-2">
-                            <button onClick={handleRefine} disabled={isRefining || !refinementRequest} className="px-6 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center min-w-[120px] ml-auto">
-                                {isRefining ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : 'Refine CV'}
-                            </button>
-                        </div>
-                    </div>
+                  </div>
+                  <button onClick={() => copyToClipboard(tailoredCv, 'CV')} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
                 </div>
-            )}
+              </div>
+              <div className="p-6 bg-gray-800 border border-gray-700 rounded-lg whitespace-pre-wrap font-mono text-sm leading-relaxed">{tailoredCv}</div>
+              
+              <div className="text-center pt-4">
+                <button onClick={handleAtsCheck} disabled={isCheckingAts} className="px-6 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center min-w-[220px] mx-auto">
+                  {isCheckingAts ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : 'Analyze ATS Friendliness'}
+                </button>
+              </div>
 
-            {coverLetter && (
-                <div className="space-y-4 pt-4">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-bold text-gray-100">Generated Cover Letter</h2>
-                        <div className="flex items-center gap-2">
-                            <div className="relative" ref={coverLetterSaveDropdownRef}>
-                                <button onClick={() => setIsCoverLetterSaveDropdownOpen(prev => !prev)} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
-                                    <DownloadIcon className="w-4 h-4" />
-                                    <span>Save As...</span>
-                                    <ChevronDownIcon className={`w-4 h-4 transition-transform ${isCoverLetterSaveDropdownOpen ? 'rotate-180' : ''}`} />
-                                </button>
-                                {isCoverLetterSaveDropdownOpen && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-gray-700 border border-gray-600 rounded-md shadow-lg z-10">
-                                        <ul className="py-1">
-                                            <li><button onClick={() => handleSaveAs(coverLetter, 'Cover-Letter', 'txt')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">TXT Document</button></li>
-                                            <li><button onClick={() => handleSaveAs(coverLetter, 'Cover-Letter', 'pdf')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">PDF Document</button></li>
-                                            <li><button onClick={() => handleSaveAs(coverLetter, 'Cover-Letter', 'docx')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">DOCX Document</button></li>
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
-                            <button onClick={() => copyToClipboard(coverLetter, 'Cover Letter')} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
-                        </div>
-                    </div>
-                    <div className="p-6 bg-gray-800 border border-gray-700 rounded-lg whitespace-pre-wrap font-mono text-sm leading-relaxed">{coverLetter}</div>
+              {isCheckingAts && (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-400 mx-auto"></div>
+                  <p className="mt-3 text-gray-400">Analyzing your tailored CV...</p>
                 </div>
-            )}
-        </div>
-      )}
+              )}
+
+              {atsReport && <ATSReportDisplay report={atsReport} />}
+
+              <div className="p-4 bg-gray-800/50 rounded-lg mt-6">
+                <h3 className="font-semibold text-lg mb-3 text-indigo-400">Need Changes? Ask Gemini.</h3>
+                <textarea value={refinementRequest} onChange={(e) => setRefinementRequest(e.target.value)} placeholder="e.g., 'Make the summary more concise' or 'Add a section for my certifications'" className={`${commonTextAreaClass} h-24`} />
+                <div className="text-right mt-2">
+                  <button onClick={handleRefine} disabled={isRefining || !refinementRequest} className="px-6 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center min-w-[120px] ml-auto">
+                    {isRefining ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : 'Refine CV'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cover Letter Section Loading */}
+        {isGeneratingCoverLetter && (
+          <div className="text-center p-8 bg-gray-800/50 rounded-lg">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400 mx-auto"></div>
+            <p className="mt-4 text-gray-400">Gemini is writing your cover letter...</p>
+          </div>
+        )}
+
+        {/* Cover Letter Section Content */}
+        {!isGeneratingCoverLetter && coverLetter && (
+          <div className="space-y-4 pt-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-100">Generated Cover Letter</h2>
+              <div className="flex items-center gap-2">
+                <div className="relative" ref={coverLetterSaveDropdownRef}>
+                  <button onClick={() => setIsCoverLetterSaveDropdownOpen(prev => !prev)} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+                    <DownloadIcon className="w-4 h-4" />
+                    <span>Save As...</span>
+                    <ChevronDownIcon className={`w-4 h-4 transition-transform ${isCoverLetterSaveDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {isCoverLetterSaveDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-gray-700 border border-gray-600 rounded-md shadow-lg z-10">
+                      <ul className="py-1">
+                        <li><button onClick={() => handleSaveAs(coverLetter, 'Cover-Letter', 'txt')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">TXT Document</button></li>
+                        <li><button onClick={() => handleSaveAs(coverLetter, 'Cover-Letter', 'pdf')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">PDF Document</button></li>
+                        <li><button onClick={() => handleSaveAs(coverLetter, 'Cover-Letter', 'docx')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">DOCX Document</button></li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+                <button onClick={() => copyToClipboard(coverLetter, 'Cover Letter')} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
+              </div>
+            </div>
+            <div className="p-6 bg-gray-800 border border-gray-700 rounded-lg whitespace-pre-wrap font-mono text-sm leading-relaxed">{coverLetter}</div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
