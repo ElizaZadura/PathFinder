@@ -11,13 +11,13 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
 
-export async function getJobDescriptionFromUrl(url: string): Promise<string> {
+export async function getJobDescriptionFromUrl(url: string, signal: AbortSignal): Promise<string> {
   try {
     if (!url.startsWith('http')) {
       throw new Error("Invalid URL provided.");
     }
     // 1. Fetch HTML content via CORS proxy
-    const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`);
+    const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`, { signal });
     if (!response.ok) {
       throw new Error(`Failed to fetch URL content. Status: ${response.status}. The website may be blocking requests.`);
     }
@@ -50,6 +50,10 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
     
     return resultText;
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+        console.log("URL fetch was aborted by the user.");
+        throw error; // Re-throw so the component can identify it
+    }
     console.error("Error getting job description from URL:", error);
     if (error instanceof Error) {
         throw new Error(`Failed to process the URL: ${error.message}`);

@@ -170,6 +170,7 @@ const CVTailor: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveDropdownRef = useRef<HTMLDivElement>(null);
   const coverLetterSaveDropdownRef = useRef<HTMLDivElement>(null);
+  const fetchAbortControllerRef = useRef<AbortController | null>(null);
 
 
   useEffect(() => {
@@ -207,17 +208,28 @@ const CVTailor: React.FC = () => {
 
   const handleFetchFromUrl = useCallback(async () => {
     if (!jobPostingUrl) return;
+    
+    fetchAbortControllerRef.current = new AbortController();
     setIsFetchingUrl(true);
     setError(null);
     try {
-      const description = await getJobDescriptionFromUrl(jobPostingUrl);
+      const description = await getJobDescriptionFromUrl(jobPostingUrl, fetchAbortControllerRef.current.signal);
       setJobPosting(description);
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch and parse job description from URL.');
+      if (err.name !== 'AbortError') {
+        setError(err.message || 'Failed to fetch and parse job description from URL.');
+      }
     } finally {
       setIsFetchingUrl(false);
+      fetchAbortControllerRef.current = null;
     }
   }, [jobPostingUrl]);
+
+  const handleStopFetch = () => {
+    if (fetchAbortControllerRef.current) {
+      fetchAbortControllerRef.current.abort();
+    }
+  };
 
   const handleTailor = useCallback(async () => {
     if (!cv || !jobPosting) {
@@ -404,9 +416,15 @@ const CVTailor: React.FC = () => {
                 <label htmlFor="job-posting-url-input" className="font-semibold text-gray-300">Job Posting URL</label>
                 <div className="flex items-center gap-2">
                 <input id="job-posting-url-input" type="url" value={jobPostingUrl} onChange={(e) => setJobPostingUrl(e.target.value)} placeholder="https://www.linkedin.com/jobs/view/..." className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-                <button onClick={handleFetchFromUrl} disabled={isFetchingUrl || !jobPostingUrl.startsWith('http')} className="flex-shrink-0 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all h-[50px] w-[110px] flex items-center justify-center">
-                    {isFetchingUrl ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : 'Fetch'}
-                </button>
+                 {isFetchingUrl ? (
+                    <button onClick={handleStopFetch} className="flex-shrink-0 px-6 py-3 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700 transition-all h-[50px] w-[110px] flex items-center justify-center">
+                        Stop
+                    </button>
+                ) : (
+                    <button onClick={handleFetchFromUrl} disabled={!jobPostingUrl.startsWith('http')} className="flex-shrink-0 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all h-[50px] w-[110px] flex items-center justify-center">
+                        Fetch
+                    </button>
+                )}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Pasting a URL may not always work due to site restrictions (CORS). If it fails, please paste the text below.</p>
             </div>
