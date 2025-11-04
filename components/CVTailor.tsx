@@ -9,7 +9,6 @@ declare global {
     mammoth: any;
     jspdf: any; // For jsPDF
     docx: any; // For docx
-    pdfjsLib: any; // For pdf.js
   }
 }
 
@@ -195,9 +194,7 @@ const CVTailor: React.FC = () => {
 
   useEffect(() => {
     const checkLibraries = () => {
-      if (window.mammoth && window.jspdf && window.docx && window.pdfjsLib) {
-        // Configure pdf.js worker once the library is loaded
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.js`;
+      if (window.mammoth && window.jspdf && window.docx) {
         setLibrariesReady(true);
         return true;
       }
@@ -327,17 +324,6 @@ const CVTailor: React.FC = () => {
             const arrayBuffer = await file.arrayBuffer();
             const result = await window.mammoth.extractRawText({ arrayBuffer });
             text = result.value;
-        } else if (fileName.endsWith('.pdf')) {
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await window.pdfjsLib.getDocument(arrayBuffer).promise;
-            const pageTexts = [];
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                const pageText = textContent.items.map((item: any) => item.str).join(' ');
-                pageTexts.push(pageText);
-            }
-            text = pageTexts.join('\n\n');
         } else {
             text = await file.text();
         }
@@ -416,14 +402,14 @@ const CVTailor: React.FC = () => {
                         <TrashIcon className="w-4 h-4" />
                         <span>Clear</span>
                     </button>
-                    <input type="file" ref={fileInputRef} onChange={handleFileLoad} accept=".txt,.md,.text,.docx,.pdf" style={{ display: 'none' }} />
+                    <input type="file" ref={fileInputRef} onChange={handleFileLoad} accept=".txt,.md,.text,.docx" style={{ display: 'none' }} />
                     <button onClick={handleLoadClick} disabled={isFileLoading || !librariesReady} className="flex items-center justify-center w-[140px] gap-2 px-3 py-1 text-sm bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed">
                         {isFileLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <UploadIcon className="w-4 h-4" />}
                         {isFileLoading ? 'Parsing...' : (!librariesReady ? 'Initializing...' : 'Load from File')}
                     </button>
                  </div>
             </div>
-          <textarea id="cv-input" value={cv} onChange={(e) => setCv(e.target.value)} placeholder="Paste your CV here, or load a DOCX, PDF, or TXT file." className={`${commonTextAreaClass} flex-grow`} />
+          <textarea id="cv-input" value={cv} onChange={(e) => setCv(e.target.value)} placeholder="Paste your CV here, or load a DOCX or TXT file." className={`${commonTextAreaClass} flex-grow`} />
         </div>
         <div className="flex flex-col gap-4">
             <div className="space-y-2">
