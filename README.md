@@ -4,7 +4,11 @@ A web application that leverages the Gemini API to help you tailor your CV for s
 
 ## Features
 
--   **CV Tailoring**: Automatically rewrites your CV to highlight the most relevant skills and experience for a given job posting. It also extracts key skills from the job description.
+-   **CV Tailoring**: Automatically rewrites your CV to highlight the most relevant skills and experience for a given job posting.
+-   **Cover Letter Generation**: Creates a professional and compelling cover letter based on your CV and the job description.
+-   **Interactive CV Refinement**: Allows you to provide natural language feedback (e.g., "make the summary more concise") to iteratively improve your tailored CV.
+-   **ATS Friendliness Analysis**: Scans your tailored CV against the job posting to provide a detailed Applicant Tracking System (ATS) compliance report, including keyword matching and structural feedback.
+-   **Job Data Export**: Extracts key details (Position, Company, Salary, etc.) from the job posting and your CV into a CSV file, ready to be imported into your job application tracking software.
 -   **Live Conversation**: Engage in a real-time, voice-based conversation with Gemini. Perfect for interview practice or general queries.
 
 ## How to Run/Build
@@ -43,10 +47,15 @@ To run this project locally, you'll need to have Node.js and a package manager l
 ### CV Tailor
 
 1.  Navigate to the **CV Tailor** tab.
-2.  Paste your current CV into the "Your CV" text area. Your CV is automatically saved in your browser for future visits.
+2.  Paste your current CV into the "Your CV" text area, or use the "Load from File" button to upload a `.docx` or `.txt` file. Your CV is automatically saved in your browser for future visits.
 3.  Provide the job description by either pasting a URL and clicking "Fetch" or pasting the text directly.
-4.  Click the **Tailor My CV** button.
-5.  Your new, tailored CV will appear below, along with extracted keywords. You can then copy it to your clipboard.
+4.  Select your desired output language.
+5.  Click the **Tailor My CV** button. Your new, tailored CV will appear below, along with extracted keywords and a summary of changes.
+6.  Click **Generate Cover Letter** to create a cover letter based on the provided documents.
+7.  Use the **Refine CV** section to make further adjustments by typing in your requests.
+8.  Click **Analyze ATS Friendliness** to get a detailed report on how well your tailored CV is optimized for applicant tracking systems.
+9.  Click **Export Job Data** to download a CSV file with key application details for your personal tracking.
+10. You can save your tailored CV or cover letter as a `.txt` or `.pdf` file using the "Save As..." buttons.
 
 ### Live Chat
 
