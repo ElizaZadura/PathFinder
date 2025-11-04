@@ -1,14 +1,12 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter } from '../services/geminiService';
-import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, ChevronDownIcon, TrashIcon, StopIcon } from './icons';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon } from './icons';
 import type { ATSReport } from '../types';
 
 // Extend the Window interface to include the global libraries from scripts in index.html
 declare global {
   interface Window {
     mammoth: any;
-    jspdf: any; // For jsPDF
-    docx: any; // For docx
   }
 }
 
@@ -165,36 +163,16 @@ const CVTailor: React.FC = () => {
   const [outputLanguage, setOutputLanguage] = useState<string>('English');
   const [atsReport, setAtsReport] = useState<ATSReport | null>(null);
   const [isCheckingAts, setIsCheckingAts] = useState<boolean>(false);
-  const [isSaveDropdownOpen, setIsSaveDropdownOpen] = useState<boolean>(false);
-  const [isCoverLetterSaveDropdownOpen, setIsCoverLetterSaveDropdownOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const saveDropdownRef = useRef<HTMLDivElement>(null);
-  const coverLetterSaveDropdownRef = useRef<HTMLDivElement>(null);
   const fetchAbortControllerRef = useRef<AbortController | null>(null);
-
 
   useEffect(() => {
     localStorage.setItem('userCv', cv);
   }, [cv]);
-  
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (saveDropdownRef.current && !saveDropdownRef.current.contains(event.target as Node)) {
-        setIsSaveDropdownOpen(false);
-      }
-      if (coverLetterSaveDropdownRef.current && !coverLetterSaveDropdownRef.current.contains(event.target as Node)) {
-        setIsCoverLetterSaveDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
 
   useEffect(() => {
     const checkLibraries = () => {
-      if (window.mammoth && window.jspdf && window.docx) {
+      if (window.mammoth) {
         setLibrariesReady(true);
         return true;
       }
@@ -346,47 +324,18 @@ const CVTailor: React.FC = () => {
   };
   const handleLoadClick = () => { fileInputRef.current?.click(); };
   
-  const handleSaveAs = (content: string, baseFilename: string, format: 'txt' | 'pdf' | 'docx') => {
+  const handleSaveAsTxt = (content: string, baseFilename: string) => {
     if (!content) return;
     
-    if (format === 'txt') {
-      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${baseFilename}.txt`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } else if (format === 'pdf' && window.jspdf) {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(11);
-      const margin = 15;
-      const usableWidth = doc.internal.pageSize.getWidth() - margin * 2;
-      const lines = doc.splitTextToSize(content, usableWidth);
-      doc.text(lines, margin, margin);
-      doc.save(`${baseFilename}.pdf`);
-    } else if (format === 'docx' && window.docx) {
-      const { Document, Packer, Paragraph, TextRun } = window.docx;
-      const paragraphs = content.split('\n').map(line => new Paragraph({ children: [new TextRun(line)] }));
-      const doc = new Document({ sections: [{ properties: {}, children: paragraphs }] });
-      Packer.toBlob(doc).then(blob => {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${baseFilename}.docx`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      });
-    }
-    
-    setIsSaveDropdownOpen(false);
-    setIsCoverLetterSaveDropdownOpen(false);
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${baseFilename}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const commonTextAreaClass = "w-full p-4 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 resize-y";
@@ -487,22 +436,10 @@ const CVTailor: React.FC = () => {
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-100">Your Tailored CV</h2>
                 <div className="flex items-center gap-2">
-                  <div className="relative" ref={saveDropdownRef}>
-                    <button onClick={() => setIsSaveDropdownOpen(prev => !prev)} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
-                      <DownloadIcon className="w-4 h-4" />
-                      <span>Save As...</span>
-                      <ChevronDownIcon className={`w-4 h-4 transition-transform ${isSaveDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    {isSaveDropdownOpen && (
-                      <div className="absolute right-0 mt-2 w-48 bg-gray-700 border border-gray-600 rounded-md shadow-lg z-10">
-                        <ul className="py-1">
-                          <li><button onClick={() => handleSaveAs(tailoredCv, 'Tailored-CV', 'txt')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">TXT Document</button></li>
-                          <li><button onClick={() => handleSaveAs(tailoredCv, 'Tailored-CV', 'pdf')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">PDF Document</button></li>
-                          <li><button onClick={() => handleSaveAs(tailoredCv, 'Tailored-CV', 'docx')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">DOCX Document</button></li>
-                        </ul>
-                      </div>
-                    )}
-                  </div>
+                  <button onClick={() => handleSaveAsTxt(tailoredCv, 'Tailored-CV')} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+                    <DownloadIcon className="w-4 h-4" />
+                    <span>Save as TXT</span>
+                  </button>
                   <button onClick={() => copyToClipboard(tailoredCv, 'CV')} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
                 </div>
               </div>
@@ -550,22 +487,10 @@ const CVTailor: React.FC = () => {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-100">Generated Cover Letter</h2>
               <div className="flex items-center gap-2">
-                <div className="relative" ref={coverLetterSaveDropdownRef}>
-                  <button onClick={() => setIsCoverLetterSaveDropdownOpen(prev => !prev)} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
-                    <DownloadIcon className="w-4 h-4" />
-                    <span>Save As...</span>
-                    <ChevronDownIcon className={`w-4 h-4 transition-transform ${isCoverLetterSaveDropdownOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {isCoverLetterSaveDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-gray-700 border border-gray-600 rounded-md shadow-lg z-10">
-                      <ul className="py-1">
-                        <li><button onClick={() => handleSaveAs(coverLetter, 'Cover-Letter', 'txt')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">TXT Document</button></li>
-                        <li><button onClick={() => handleSaveAs(coverLetter, 'Cover-Letter', 'pdf')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">PDF Document</button></li>
-                        <li><button onClick={() => handleSaveAs(coverLetter, 'Cover-Letter', 'docx')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">DOCX Document</button></li>
-                      </ul>
-                    </div>
-                  )}
-                </div>
+                <button onClick={() => handleSaveAsTxt(coverLetter, 'Cover-Letter')} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">
+                  <DownloadIcon className="w-4 h-4" />
+                  <span>Save as TXT</span>
+                </button>
                 <button onClick={() => copyToClipboard(coverLetter, 'Cover Letter')} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
               </div>
             </div>
