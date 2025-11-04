@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter } from '../services/geminiService';
-import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, ChevronDownIcon, TrashIcon } from './icons';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, ChevronDownIcon, TrashIcon, StopIcon } from './icons';
 import type { ATSReport } from '../types';
 
 // Extend the Window interface to include the global libraries from scripts in index.html
@@ -197,7 +197,7 @@ const CVTailor: React.FC = () => {
     const checkLibraries = () => {
       if (window.mammoth && window.jspdf && window.docx && window.pdfjsLib) {
         // Configure pdf.js worker once the library is loaded
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs`;
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.js`;
         setLibrariesReady(true);
         return true;
       }
@@ -429,16 +429,19 @@ const CVTailor: React.FC = () => {
             <div className="space-y-2">
                 <label htmlFor="job-posting-url-input" className="font-semibold text-gray-300">Job Posting URL</label>
                 <div className="flex items-center gap-2">
-                <input id="job-posting-url-input" type="url" value={jobPostingUrl} onChange={(e) => setJobPostingUrl(e.target.value)} placeholder="https://www.linkedin.com/jobs/view/..." className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-                 {isFetchingUrl ? (
-                    <button onClick={handleStopFetch} className="flex-shrink-0 px-6 py-3 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700 transition-all h-[50px] w-[110px] flex items-center justify-center">
-                        Stop
-                    </button>
-                ) : (
-                    <button onClick={handleFetchFromUrl} disabled={!jobPostingUrl.startsWith('http')} className="flex-shrink-0 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all h-[50px] w-[110px] flex items-center justify-center">
-                        Fetch
-                    </button>
-                )}
+                    <input id="job-posting-url-input" type="url" value={jobPostingUrl} onChange={(e) => setJobPostingUrl(e.target.value)} placeholder="https://www.linkedin.com/jobs/view/..." className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                    {isFetchingUrl ? (
+                        <div className="flex-shrink-0 w-[110px] h-[50px] flex items-center justify-center gap-4 bg-gray-800 border border-gray-700 rounded-lg px-2" aria-label="Fetching job description">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-400"></div>
+                            <button onClick={handleStopFetch} className="p-2 text-gray-400 rounded-lg hover:bg-gray-700 hover:text-white transition-colors" title="Stop">
+                                <StopIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                    ) : (
+                        <button onClick={handleFetchFromUrl} disabled={!jobPostingUrl.startsWith('http')} className="flex-shrink-0 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all h-[50px] w-[110px] flex items-center justify-center">
+                            Fetch
+                        </button>
+                    )}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Pasting a URL may not always work due to site restrictions (CORS). If it fails, please paste the text below.</p>
             </div>
