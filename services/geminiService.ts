@@ -62,6 +62,7 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
   try {
     const prompt = `
       Based on the following resume and job description, please rewrite the resume to highlight the most relevant skills and experiences for this specific job application.
+      The final rewritten resume should be concise and ideally not exceed the length of two standard A4 pages.
       Maintain a professional tone and structure. The final rewritten resume must be in **${language}**.
 
       After rewriting the resume, provide a brief summary of the key changes you made. Present this summary as a markdown list of bullet points.
@@ -99,6 +100,53 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
   } catch (error) {
     console.error("Error tailoring CV:", error);
     throw new Error("Failed to get tailored CV from Gemini API.");
+  }
+}
+
+export async function generateCoverLetter(cv: string, jobPosting: string, language: string): Promise<string> {
+  try {
+    const prompt = `
+      You are an expert career coach. Based on the provided resume and job description, write a professional, concise, and compelling cover letter.
+
+      The cover letter should:
+      1. Be written in **${language}**.
+      2. Be addressed appropriately (e.g., "Dear Hiring Manager," if no name is available).
+      3. Briefly introduce the candidate and the role they are applying for.
+      4. Highlight 2-3 key experiences or skills from the resume that directly align with the most important requirements in the job description.
+      5. Express enthusiasm for the role and the company.
+      6. End with a strong call to action (e.g., expressing eagerness for an interview).
+      7. Keep the tone professional and confident.
+      8. The entire cover letter should be around 3-4 paragraphs long.
+
+      **Candidate's Resume:**
+      ${cv}
+
+      **Job Description:**
+      ${jobPosting}
+    `;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: prompt,
+        config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    coverLetter: {
+                        type: Type.STRING,
+                        description: "The full text of the generated cover letter."
+                    }
+                }
+            }
+        }
+    });
+    
+    const result = JSON.parse(response.text);
+    return result.coverLetter;
+  } catch (error) {
+    console.error("Error generating cover letter:", error);
+    throw new Error("Failed to generate cover letter from Gemini API.");
   }
 }
 
