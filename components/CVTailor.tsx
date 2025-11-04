@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter } from '../services/geminiService';
-import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon } from './icons';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon } from './icons';
 import type { ATSReport } from '../types';
 
 // Extend the Window interface to include the global libraries from scripts in index.html
@@ -169,6 +169,7 @@ const CVTailor: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cvSaveDropdownRef = useRef<HTMLDivElement>(null);
   const clSaveDropdownRef = useRef<HTMLDivElement>(null);
+  const fetchControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     localStorage.setItem('userCv', cv);
@@ -208,18 +209,39 @@ const CVTailor: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const handleStopFetch = () => {
+    if (fetchControllerRef.current) {
+        fetchControllerRef.current.abort();
+        fetchControllerRef.current = null;
+    }
+    setIsFetchingUrl(false);
+  };
+
   const handleFetchFromUrl = useCallback(async () => {
     if (!jobPostingUrl) return;
+
+    if (fetchControllerRef.current) {
+      fetchControllerRef.current.abort();
+    }
+    
+    const controller = new AbortController();
+    fetchControllerRef.current = controller;
     
     setIsFetchingUrl(true);
     setError(null);
     try {
       const description = await getJobDescriptionFromUrl(jobPostingUrl);
-      setJobPosting(description);
+      if (!controller.signal.aborted) {
+        setJobPosting(description);
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch and parse job description from URL.');
+      if (!controller.signal.aborted) {
+          setError(err.message || 'Failed to fetch and parse job description from URL.');
+      }
     } finally {
-      setIsFetchingUrl(false);
+      if (fetchControllerRef.current === controller) {
+        setIsFetchingUrl(false);
+      }
     }
   }, [jobPostingUrl]);
 
@@ -411,8 +433,14 @@ const CVTailor: React.FC = () => {
                 <div className="flex items-center gap-2">
                     <input id="job-posting-url-input" type="url" value={jobPostingUrl} onChange={(e) => setJobPostingUrl(e.target.value)} placeholder="https://www.linkedin.com/jobs/view/..." className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
                     {isFetchingUrl ? (
-                        <div className="flex-shrink-0 w-[110px] h-[50px] flex items-center justify-center bg-gray-800 border border-gray-700 rounded-lg" aria-label="Fetching job description">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-400"></div>
+                        <div className="flex-shrink-0 h-[50px] w-[110px] bg-gray-800 border border-gray-700 rounded-lg flex items-center justify-center gap-3 px-3" aria-live="polite" aria-busy="true">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-400" role="status">
+                                <span className="sr-only">Loading...</span>
+                            </div>
+                            <div className="h-6 w-px bg-gray-600"></div>
+                            <button onClick={handleStopFetch} className="p-1 rounded-md text-gray-400 hover:bg-red-600 hover:text-white transition-colors" aria-label="Stop fetching">
+                                <StopIcon className="w-5 h-5" />
+                            </button>
                         </div>
                     ) : (
                         <button onClick={handleFetchFromUrl} disabled={!jobPostingUrl.startsWith('http')} className="flex-shrink-0 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all h-[50px] w-[110px] flex items-center justify-center">
