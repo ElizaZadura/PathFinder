@@ -10,45 +10,88 @@ if (!process.env.API_KEY) {
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export async function getJobDescriptionFromUrl(url: string): Promise<string> {
+  // Special handling for arbetsformedlingen.se, which uses a public API.
+  // This is more reliable than using the general-purpose Gemini fetcher.
+  const arbetsformedlingenRegex = /arbetsformedlingen\.se\/platsbanken\/annonser\/(\d+)/;
+  const match = url.match(arbetsformedlingenRegex);
+
+  if (match && match[1]) {
+    const jobId = match[1];
+    const apiUrl = `https://platsbanken-api.arbetsformedlingen.se/jobs/v1/job/${jobId}`;
+    try {
+      console.log(`Fetching from Arbetsförmedlingen API: ${apiUrl}`);
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Accept': 'application/json',
+          'INT_SYS': 'platsbanken_web_beta',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const descriptionHtml = data?.body?.text;
+      
+      if (descriptionHtml) {
+        // Strip HTML tags to get clean text.
+        // This is a simple regex; it might not handle all edge cases but is good for this purpose.
+        const plainText = descriptionHtml.replace(/<[^>]*>?/gm, '');
+        // Also replace HTML entities
+        const tempEl = document.createElement("div");
+        tempEl.innerHTML = plainText;
+        return tempEl.textContent || tempEl.innerText || "";
+      } else {
+        throw new Error("Job description not found in the Arbetsförmedlingen API response.");
+      }
+    } catch (apiError) {
+      console.error("Error fetching from Arbetsförmedlingen API:", apiError);
+      throw new Error("Failed to fetch job description from the Arbetsförmedlingen API. Please try pasting the text manually.");
+    }
+  }
+
+  // Fallback to Gemini for all other URLs
   try {
     if (!url.startsWith('http')) {
       throw new Error("Invalid URL provided.");
     }
     
     const prompt = `
-      You are an expert web scraper. Your task is to go to the following URL and extract the full job description.
+      Your task is to act as a simple but precise text extractor. You will be given a single URL.
 
-      URL: ${url}
+      Your ONLY source of information MUST be the content at that exact URL: ${url}
 
-      **Instructions:**
-      1. Access the URL directly.
-      2. Find the main content area that contains the job description.
-      3. Extract the complete text of the job description, including responsibilities, qualifications, etc.
-      4. Clean the extracted text by removing all extraneous content like navigation menus, headers, footers, sidebars, and advertisements.
-      5. Return ONLY the cleaned, plain text of the job description.
+      Do NOT use a general web search or information from any other source. Access the URL provided and identify the main content of the job description.
 
-      **IMPORTANT:** If you cannot access the URL, if the page requires a login, or if you cannot find a job description, you MUST respond with the exact text: "ERROR: Could not retrieve a job description from the provided URL."
+      Extract and return ONLY the clean, plain text of that specific job description. Include all details like responsibilities, qualifications, and company information. Exclude all surrounding website-related text like navigation menus, headers, footers, ads, and "related jobs" links.
+
+      If you cannot access the exact URL, or if there is no job description at that URL, you MUST respond with the exact phrase: "ERROR: Could not retrieve a job description from the provided URL."
     `;
 
     const geminiResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.5-pro',
         contents: prompt,
+        config: {
+          tools: [{googleSearch: {}}],
+        },
     });
     
     const resultText = geminiResponse.text.trim();
-    if (resultText.startsWith("ERROR:")) {
+    
+    if (resultText.startsWith("ERROR:") || !resultText) {
         const modelError = resultText.replace("ERROR: ", "");
-        throw new Error(`${modelError} This can happen with complex websites (like LinkedIn) or private job postings. Please try copying and pasting the text manually.`);
+        throw new Error(`${modelError || 'Could not retrieve a job description from the provided URL.'} This can happen with complex websites (like LinkedIn) or private job postings. Please try copying and pasting the text manually.`);
     }
 
-    if (!resultText) {
-      throw new Error("The model returned an empty description. The job posting might be inaccessible or no longer available. Please try pasting the text manually.");
-    }
-    
     return resultText;
   } catch (error) {
     console.error("Error getting job description from URL:", error);
     if (error instanceof Error) {
+        // Avoid re-wrapping the error message if it's already the one we want.
+        if (error.message.includes('Could not retrieve a job description')) {
+            throw error;
+        }
         throw new Error(`Failed to process the URL: ${error.message}`);
     }
     throw new Error("An unknown error occurred while processing the job description URL.");
