@@ -16,12 +16,13 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
     }
     
     const prompt = `
-      Please access the following URL and extract the full text content of the main job description.
-      Clean it up by removing all HTML tags, scripts, styles, navigation bars, headers, footers, and any other irrelevant content like ads or sidebars.
-      Return only the clean, plain text of the job description itself.
-      If you cannot access the URL or find a job description, respond with "ERROR: No job description found at this URL.".
+      Please act as an expert web scraper. Your task is to extract the full, clean text of the job description from the following URL: ${url}.
 
-      URL: ${url}
+      Focus on the main content of the job posting. Exclude headers, footers, navigation bars, and advertisements.
+      
+      Return ONLY the plain text of the job description. Do not add any commentary, summaries, or introductions like "Here is the job description:".
+
+      If you cannot access the URL or find a clear job description on the page, please return a short message explaining the issue, for example: "Could not access the content at the provided URL." or "No job description was found on this page."
     `;
 
     const geminiResponse = await ai.models.generateContent({
@@ -38,15 +39,17 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
         throw new Error("The API returned an empty or invalid response for the job description.");
     }
 
-    if (resultText.startsWith("ERROR:")) {
-        throw new Error(resultText.replace("ERROR: ", ""));
+    // A more general check for failure messages from the model
+    const failureKeywords = ['could not access', 'no job description', 'unable to find', 'error extracting', 'cannot find'];
+    if (resultText.length < 150 && failureKeywords.some(keyword => resultText.toLowerCase().includes(keyword))) {
+        throw new Error(resultText);
     }
     
     return resultText;
   } catch (error) {
     console.error("Error getting job description from URL:", error);
     if (error instanceof Error) {
-        throw new Error(`Failed to process the URL: ${error.message}`);
+        throw new Error(`Error fetching from URL: ${error.message}`);
     }
     throw new Error("An unknown error occurred while processing the job description URL.");
   }
