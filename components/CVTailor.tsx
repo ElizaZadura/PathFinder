@@ -420,6 +420,32 @@ const CVTailor: React.FC = () => {
     setCv('');
   };
 
+  const handleClearAll = useCallback(() => {
+    if (fetchControllerRef.current) {
+        fetchControllerRef.current.abort();
+        fetchControllerRef.current = null;
+    }
+    setCv('');
+    setJobPosting('');
+    setJobPostingUrl('');
+    setKeywords([]);
+    setTailoredCv('');
+    setCoverLetter('');
+    setChangesSummary([]);
+    setError(null);
+    setAtsReport(null);
+    setRefinementRequest('');
+    setIsFetchingUrl(false);
+    setIsLoading(false);
+    setIsGeneratingCoverLetter(false);
+    setIsRefining(false);
+    setIsCheckingAts(false);
+    setIsExportingCsv(false);
+    setIsCvSaveOpen(false);
+    setIsClSaveOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   const copyToClipboard = (text: string, type: string) => { 
     navigator.clipboard.writeText(text); 
     alert(`${type} copied to clipboard!`); 
@@ -471,6 +497,7 @@ const CVTailor: React.FC = () => {
     doc.save(`${baseFilename}.pdf`);
   };
 
+  const nothingToClear = !cv && !jobPosting && !jobPostingUrl && !tailoredCv && !coverLetter && !atsReport && keywords.length === 0;
   const commonTextAreaClass = "w-full p-4 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 resize-y";
 
   return (
@@ -539,6 +566,10 @@ const CVTailor: React.FC = () => {
             </button>
             <button onClick={handleExportCsv} disabled={isExportingCsv || !cv || !jobPosting} className="px-8 py-3 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-green-500 min-w-[220px] flex items-center justify-center gap-2">
               {isExportingCsv ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div><span>Exporting...</span></> : <><TableIcon /><span>Export Job Data</span></>}
+            </button>
+            <button onClick={handleClearAll} disabled={nothingToClear} className="px-8 py-3 bg-transparent border border-red-500 text-red-400 font-bold rounded-lg hover:bg-red-500/20 disabled:border-gray-600 disabled:text-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 min-w-[220px] flex items-center justify-center gap-2">
+                <TrashIcon className="w-5 h-5" />
+                <span>Clear All</span>
             </button>
         </div>
       </div>
