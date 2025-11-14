@@ -33,6 +33,11 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
     });
     
     const resultText = geminiResponse.text;
+
+    if (typeof resultText !== 'string' || !resultText.trim()) {
+        throw new Error("The API returned an empty or invalid response for the job description.");
+    }
+
     if (resultText.startsWith("ERROR:")) {
         throw new Error(resultText.replace("ERROR: ", ""));
     }
@@ -84,6 +89,10 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
         }
     });
     
+    if (!response.text) {
+        throw new Error("API returned an empty response when tailoring CV.");
+    }
+    
     const result = JSON.parse(response.text);
     return result;
   } catch (error) {
@@ -130,6 +139,10 @@ export async function generateCoverLetter(cv: string, jobPosting: string, langua
             }
         }
     });
+
+    if (!response.text) {
+        throw new Error("API returned an empty response when generating cover letter.");
+    }
     
     const result = JSON.parse(response.text);
     return result.coverLetter;
@@ -183,6 +196,10 @@ export async function refineCV(cv: string, jobPosting: string, currentTailoredCv
                 }
             }
         });
+
+        if (!response.text) {
+            throw new Error("API returned an empty response when refining CV.");
+        }
         
         const result = JSON.parse(response.text);
         return result;
@@ -215,6 +232,10 @@ export async function extractKeywords(jobPosting: string): Promise<string[]> {
                 }
             }
         });
+        if (!response.text) {
+            console.warn("API returned an empty response for keywords.");
+            return [];
+        }
         const jsonResponse = JSON.parse(response.text);
         return jsonResponse.keywords || [];
     } catch (error) {
@@ -336,6 +357,10 @@ export async function checkATSCompliance(cv: string, jobPosting: string): Promis
         }
     });
     
+    if (!response.text) {
+        throw new Error("API returned an empty response when checking ATS compliance.");
+    }
+    
     const result = JSON.parse(response.text);
     return result as ATSReport;
   } catch (error) {
@@ -386,6 +411,10 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
         },
       },
     });
+
+    if (!response.text) {
+        throw new Error("API returned an empty response when extracting job data.");
+    }
 
     const result = JSON.parse(response.text);
     return result as JobData;
