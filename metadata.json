@@ -1,5 +1,5 @@
 {
-  "name": "Tailor job applications assistant",
+  "name": "Gemini CV & Conversation Assistant",
   "description": "An application to tailor your CV to a job posting, check ATS compliance, generate cover letter, extract CSV data for export, and have a real-time conversation with Gemini's Live API.",
   "requestFramePermissions": [
     "microphone"

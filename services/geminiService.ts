@@ -16,20 +16,16 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
     }
     
     const prompt = `
-      You are a highly intelligent web scraper and data extractor. Your primary goal is to extract the main job description from the content found at the provided URL.
+      Please access the following URL and extract the full text content of the main job description.
+      Clean it up by removing all HTML tags, scripts, styles, navigation bars, headers, footers, and any other irrelevant content like ads or sidebars.
+      Return only the clean, plain text of the job description itself.
+      If you cannot access the URL or find a job description, respond with "ERROR: No job description found at this URL.".
 
       URL: ${url}
-
-      Instructions:
-      1.  Analyze the content of the URL to locate the main job posting.
-      2.  Diligently extract the full text of the job description. This includes key sections like "Responsibilities", "Qualifications", "Requirements", "What you'll do", "Who you are", etc.
-      3.  Be aggressive in cleaning the result: remove all surrounding website "chrome" like headers, footers, navigation bars, sidebars, cookie banners, advertisements, and lists of "related jobs".
-      4.  The final output should be ONLY the cleaned, plain text of the job description. Do not add any commentary, summaries, or introductory phrases like "Here is the job description:". Just return the raw text.
-      5.  If the page is inaccessible (e.g., requires a login, is a 404 page), or if you analyze the content and genuinely cannot find any text that resembles a job description, please return a concise, user-friendly message explaining the issue (e.g., "The URL requires a login to view content." or "The content at this URL does not appear to be a job posting.").
     `;
 
     const geminiResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-pro', // Using a more powerful model for better extraction
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
             tools: [{googleSearch: {}}]
@@ -37,33 +33,15 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
     });
     
     const resultText = geminiResponse.text;
-
-    if (typeof resultText !== 'string' || !resultText.trim()) {
-        throw new Error("The API returned an empty or invalid response for the job description.");
-    }
-    
-    // Heuristic check: A valid job description should be reasonably long.
-    // If the response is very short, it's likely an error message from the model as per instruction #5.
-    if (resultText.length < 150) {
-        // More comprehensive keywords to detect failure messages
-        const suspiciousKeywords = [
-            'could not', 'unable to', 'cannot access', 'requires a login',
-            'does not appear', 'no job description', '404', 'not found',
-            'error', 'failed to fetch', 'inaccessible'
-        ];
-        // If the short text contains any of these keywords, we assume it's a failure message.
-        if (suspiciousKeywords.some(keyword => resultText.toLowerCase().includes(keyword))) {
-            throw new Error(resultText);
-        }
+    if (resultText.startsWith("ERROR:")) {
+        throw new Error(resultText.replace("ERROR: ", ""));
     }
     
     return resultText;
   } catch (error) {
     console.error("Error getting job description from URL:", error);
     if (error instanceof Error) {
-        // The messages thrown within the try block are already user-friendly.
-        // Re-throw the error directly to avoid adding a generic prefix.
-        throw error;
+        throw new Error(`Failed to process the URL: ${error.message}`);
     }
     throw new Error("An unknown error occurred while processing the job description URL.");
   }
@@ -105,10 +83,6 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
             }
         }
     });
-    
-    if (!response.text) {
-        throw new Error("API returned an empty response when tailoring CV.");
-    }
     
     const result = JSON.parse(response.text);
     return result;
@@ -156,10 +130,6 @@ export async function generateCoverLetter(cv: string, jobPosting: string, langua
             }
         }
     });
-
-    if (!response.text) {
-        throw new Error("API returned an empty response when generating cover letter.");
-    }
     
     const result = JSON.parse(response.text);
     return result.coverLetter;
@@ -213,10 +183,6 @@ export async function refineCV(cv: string, jobPosting: string, currentTailoredCv
                 }
             }
         });
-
-        if (!response.text) {
-            throw new Error("API returned an empty response when refining CV.");
-        }
         
         const result = JSON.parse(response.text);
         return result;
@@ -249,10 +215,6 @@ export async function extractKeywords(jobPosting: string): Promise<string[]> {
                 }
             }
         });
-        if (!response.text) {
-            console.warn("API returned an empty response for keywords.");
-            return [];
-        }
         const jsonResponse = JSON.parse(response.text);
         return jsonResponse.keywords || [];
     } catch (error) {
@@ -374,10 +336,6 @@ export async function checkATSCompliance(cv: string, jobPosting: string): Promis
         }
     });
     
-    if (!response.text) {
-        throw new Error("API returned an empty response when checking ATS compliance.");
-    }
-    
     const result = JSON.parse(response.text);
     return result as ATSReport;
   } catch (error) {
@@ -428,10 +386,6 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
         },
       },
     });
-
-    if (!response.text) {
-        throw new Error("API returned an empty response when extracting job data.");
-    }
 
     const result = JSON.parse(response.text);
     return result as JobData;
