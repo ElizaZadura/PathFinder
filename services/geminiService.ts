@@ -16,20 +16,20 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
     }
     
     const prompt = `
-      Your task is to act as an expert data extractor. From the provided URL, extract the main job description.
+      You are a highly intelligent web scraper and data extractor. Your primary goal is to extract the main job description from the content found at the provided URL.
 
       URL: ${url}
 
-      Please follow these instructions carefully:
-      1.  Navigate to the URL and find the primary job posting content.
-      2.  Extract the full text of the job description, including sections like "Responsibilities", "Qualifications", "Requirements", "About the role", etc.
-      3.  Clean the extracted text: remove all irrelevant content such as website headers, footers, navigation links, sidebars, advertisements, and "similar jobs" sections.
-      4.  Return ONLY the cleaned, plain text of the job description. Do not include any introductory phrases like "Here is the job description:" or any summaries.
-      5.  If, after thorough analysis, you are absolutely certain that no job description exists on the page, or if the page content is inaccessible, return the specific message: "ERROR: No job description found at this URL."
+      Instructions:
+      1.  Analyze the content of the URL to locate the main job posting.
+      2.  Diligently extract the full text of the job description. This includes key sections like "Responsibilities", "Qualifications", "Requirements", "What you'll do", "Who you are", etc.
+      3.  Be aggressive in cleaning the result: remove all surrounding website "chrome" like headers, footers, navigation bars, sidebars, cookie banners, advertisements, and lists of "related jobs".
+      4.  The final output should be ONLY the cleaned, plain text of the job description. Do not add any commentary, summaries, or introductory phrases like "Here is the job description:". Just return the raw text.
+      5.  If the page is inaccessible (e.g., requires a login, is a 404 page), or if you analyze the content and genuinely cannot find any text that resembles a job description, please return a concise, user-friendly message explaining the issue (e.g., "The URL requires a login to view content." or "The content at this URL does not appear to be a job posting.").
     `;
 
     const geminiResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.5-pro', // Using a more powerful model for better extraction
         contents: prompt,
         config: {
             tools: [{googleSearch: {}}]
@@ -41,16 +41,17 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
     if (typeof resultText !== 'string' || !resultText.trim()) {
         throw new Error("The API returned an empty or invalid response for the job description.");
     }
-
-    if (resultText.startsWith("ERROR:")) {
-        // The model has explicitly signaled an error.
-        // We can remove the "ERROR: " prefix for a cleaner message to the user.
-        throw new Error(resultText.replace("ERROR: ", "").trim());
-    }
     
-    // Heuristic check: if the response is very short, it might be an unintended failure message from the model.
-    if (resultText.length < 100) {
-        const suspiciousKeywords = ['could not', 'unable to', 'cannot access'];
+    // Heuristic check: A valid job description should be reasonably long.
+    // If the response is very short, it's likely an error message from the model as per instruction #5.
+    if (resultText.length < 150) {
+        // More comprehensive keywords to detect failure messages
+        const suspiciousKeywords = [
+            'could not', 'unable to', 'cannot access', 'requires a login',
+            'does not appear', 'no job description', '404', 'not found',
+            'error', 'failed to fetch', 'inaccessible'
+        ];
+        // If the short text contains any of these keywords, we assume it's a failure message.
         if (suspiciousKeywords.some(keyword => resultText.toLowerCase().includes(keyword))) {
             throw new Error(resultText);
         }
