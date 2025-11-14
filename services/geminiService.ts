@@ -16,25 +16,33 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
     }
     
     const prompt = `
-      Please access the following URL and extract the full text content of the main job description.
-      Clean it up by removing all HTML tags, scripts, styles, navigation bars, headers, footers, and any other irrelevant content like ads or sidebars.
-      Return only the clean, plain text of the job description itself.
-      If you cannot access the URL or find a job description, respond with "ERROR: No job description found at this URL.".
+      You are an expert web scraper. Your task is to go to the following URL and extract the full job description.
 
       URL: ${url}
+
+      **Instructions:**
+      1. Access the URL directly.
+      2. Find the main content area that contains the job description.
+      3. Extract the complete text of the job description, including responsibilities, qualifications, etc.
+      4. Clean the extracted text by removing all extraneous content like navigation menus, headers, footers, sidebars, and advertisements.
+      5. Return ONLY the cleaned, plain text of the job description.
+
+      **IMPORTANT:** If you cannot access the URL, if the page requires a login, or if you cannot find a job description, you MUST respond with the exact text: "ERROR: Could not retrieve a job description from the provided URL."
     `;
 
     const geminiResponse = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
-        config: {
-            tools: [{googleSearch: {}}]
-        }
     });
     
-    const resultText = geminiResponse.text;
+    const resultText = geminiResponse.text.trim();
     if (resultText.startsWith("ERROR:")) {
-        throw new Error(resultText.replace("ERROR: ", ""));
+        const modelError = resultText.replace("ERROR: ", "");
+        throw new Error(`${modelError} This can happen with complex websites (like LinkedIn) or private job postings. Please try copying and pasting the text manually.`);
+    }
+
+    if (!resultText) {
+      throw new Error("The model returned an empty description. The job posting might be inaccessible or no longer available. Please try pasting the text manually.");
     }
     
     return resultText;
