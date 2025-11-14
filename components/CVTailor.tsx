@@ -338,34 +338,36 @@ const CVTailor: React.FC = () => {
       const data = await extractJobDataForCSV(cv, jobPosting);
       
       const headers = [
-        "Application Date", "Position", "Status", "Salary", 
-        "Reference Link", "Contact", "Source", "CV Path", 
-        "Interview Date", "Next Action", "Notes"
+        "Application Date", "Company", "Position", "Status", 
+        "Reference Link", "Next Action", "Contact", "CV Path", 
+        "Notes", "CV changes summary", "Cover letter", 
+        "Interview Date", "Salary"
       ];
       
       const escapeCsvField = (field: string | undefined): string => {
         if (field === undefined || field === null) return '""';
         const str = String(field);
-        if (str.includes('"')) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return `"${str}"`;
+        const escapedStr = str.replace(/"/g, '""'); // Escape double quotes
+        return `"${escapedStr}"`; // Always wrap in quotes for safety
       };
 
       const applicationDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      const cvChangesSummaryText = changesSummary.join('\n\n---\n\n');
 
       const rowData = [
         applicationDate,
+        data.companyName,
         data.position,
         "Applied",
-        data.salary,
         jobPostingUrl,
-        data.contact,
-        data.source,
-        data.suggestedCvFilename,
-        "", // Interview Date is empty by default
         data.nextAction,
+        data.contact,
+        data.suggestedCvFilename,
         data.notes,
+        cvChangesSummaryText,
+        coverLetter,
+        "", // Interview Date is empty by default
+        data.salary,
       ].map(escapeCsvField);
       
       const csvContent = [
@@ -390,7 +392,7 @@ const CVTailor: React.FC = () => {
     } finally {
       setIsExportingCsv(false);
     }
-  }, [cv, jobPosting, jobPostingUrl]);
+  }, [cv, jobPosting, jobPostingUrl, changesSummary, coverLetter]);
 
   const handleFileLoad = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
