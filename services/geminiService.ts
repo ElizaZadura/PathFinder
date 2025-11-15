@@ -1,3 +1,4 @@
+
 // FIX: Removed import of non-exported type 'LiveSession'.
 import { GoogleGenAI, Type, LiveServerMessage, Modality } from "@google/genai";
 import { ATSReport, JobData } from '../types';
@@ -32,17 +33,33 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
       }
       
       const data = await response.json();
-      const descriptionHtml = data?.body?.text;
       
-      if (descriptionHtml) {
-        // Strip HTML tags to get clean text.
-        // This is a simple regex; it might not handle all edge cases but is good for this purpose.
-        const plainText = descriptionHtml.replace(/<[^>]*>?/gm, '');
-        // Also replace HTML entities
-        const tempEl = document.createElement("div");
-        tempEl.innerHTML = plainText;
-        return tempEl.textContent || tempEl.innerText || "";
+      // Attempt to extract description from various known fields
+      // API v1 usually has description.text (plain) or description.textFormatted (HTML).
+      let description = "";
+      if (data?.description?.text) {
+          description = data.description.text;
+      } else if (data?.description?.textFormatted) {
+           // Convert HTML to text using browser DOM
+           const tempEl = document.createElement("div");
+           tempEl.innerHTML = data.description.textFormatted;
+           description = tempEl.innerText || tempEl.textContent || "";
+      } else if (data?.body?.text) {
+           // Legacy path: try to parse as HTML if it looks like it, otherwise treat as text
+           const val = data.body.text;
+           if (val && (val.includes('<p>') || val.includes('<br'))) {
+               const tempEl = document.createElement("div");
+               tempEl.innerHTML = val;
+               description = tempEl.innerText || tempEl.textContent || "";
+           } else {
+               description = val;
+           }
+      }
+      
+      if (description && description.trim().length > 0) {
+        return description;
       } else {
+        console.error("Arbetsförmedlingen API response structure unknown:", data);
         throw new Error("Job description not found in the Arbetsförmedlingen API response.");
       }
     } catch (apiError) {
