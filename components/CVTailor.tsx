@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter, extractJobDataForCSV } from '../services/geminiService';
 import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon } from './icons';
@@ -156,6 +157,7 @@ const CVTailor: React.FC = () => {
   const [tailoredCv, setTailoredCv] = useState<string>('');
   const [coverLetter, setCoverLetter] = useState<string>('');
   const [changesSummary, setChangesSummary] = useState<string[]>([]);
+  const [suggestedFilename, setSuggestedFilename] = useState<string>('Tailored-CV');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState<boolean>(false);
   const [isRefining, setIsRefining] = useState<boolean>(false);
@@ -257,6 +259,7 @@ const CVTailor: React.FC = () => {
     setKeywords([]);
     setChangesSummary([]);
     setAtsReport(null);
+    setSuggestedFilename('Tailored-CV');
 
     try {
       const extracted = await extractKeywords(jobPosting);
@@ -264,6 +267,9 @@ const CVTailor: React.FC = () => {
       const result = await getTailoredCV(cv, jobPosting, outputLanguage);
       setTailoredCv(result.tailoredCv);
       setChangesSummary([result.changesSummary]);
+      if (result.suggestedFilename) {
+          setSuggestedFilename(result.suggestedFilename);
+      }
     } catch (err) {
       setError('An error occurred while tailoring your CV. Please try again.');
     } finally {
@@ -434,6 +440,7 @@ const CVTailor: React.FC = () => {
     setChangesSummary([]);
     setError(null);
     setAtsReport(null);
+    setSuggestedFilename('Tailored-CV');
     setRefinementRequest('');
     setIsFetchingUrl(false);
     setIsLoading(false);
@@ -614,10 +621,10 @@ const CVTailor: React.FC = () => {
                       {isCvSaveOpen && (
                           <div className="origin-top-right absolute right-0 mt-2 w-36 rounded-md shadow-lg bg-gray-600 ring-1 ring-black ring-opacity-5 z-10">
                               <div className="py-1">
-                                  <button onClick={() => { handleSaveAsTxt(tailoredCv, 'Tailored-CV'); setIsCvSaveOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-500">
+                                  <button onClick={() => { handleSaveAsTxt(tailoredCv, suggestedFilename); setIsCvSaveOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-500">
                                       Save as TXT
                                   </button>
-                                  <button onClick={() => { handleSaveAsPdf(tailoredCv, 'Tailored-CV'); setIsCvSaveOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-500">
+                                  <button onClick={() => { handleSaveAsPdf(tailoredCv, suggestedFilename); setIsCvSaveOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-500">
                                       Save as PDF
                                   </button>
                               </div>

@@ -151,14 +151,16 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
   }
 }
 
-export async function getTailoredCV(cv: string, jobPosting: string, language: string): Promise<{ tailoredCv: string; changesSummary: string; }> {
+export async function getTailoredCV(cv: string, jobPosting: string, language: string): Promise<{ tailoredCv: string; changesSummary: string; suggestedFilename: string; }> {
   try {
     const prompt = `
       Based on the following resume and job description, please rewrite the resume to highlight the most relevant skills and experiences for this specific job application.
       The final rewritten resume should be concise and ideally not exceed the length of two standard A4 pages.
       Maintain a professional tone and structure. The final rewritten resume must be in **${language}**.
 
-      After rewriting the resume, provide a brief summary of the key changes you made. Present this summary as a markdown list of bullet points.
+      After rewriting the resume, provide:
+      1. A brief summary of the key changes you made (formatted as a markdown list).
+      2. A suggested ATS-compliant filename for the resume file (e.g. "FirstName-LastName-JobTitle"). Do NOT include the file extension.
 
       **Original Resume:**
       ${cv}
@@ -182,6 +184,10 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
                     changesSummary: {
                         type: Type.STRING,
                         description: "A summary of key changes made to the resume, formatted as a markdown list."
+                    },
+                    suggestedFilename: {
+                        type: Type.STRING,
+                        description: "A standard, professional filename (e.g., 'John_Doe_Software_Engineer'). Do NOT include the file extension."
                     }
                 }
             }
