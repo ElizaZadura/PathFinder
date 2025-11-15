@@ -169,6 +169,7 @@ const CVTailor: React.FC = () => {
   const [isCvSaveOpen, setIsCvSaveOpen] = useState<boolean>(false);
   const [isClSaveOpen, setIsClSaveOpen] = useState<boolean>(false);
   const [isExportingCsv, setIsExportingCsv] = useState<boolean>(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cvSaveDropdownRef = useRef<HTMLDivElement>(null);
   const clSaveDropdownRef = useRef<HTMLDivElement>(null);
@@ -398,6 +399,14 @@ const CVTailor: React.FC = () => {
     }
   }, [cv, jobPosting, jobPostingUrl]);
 
+  const parseDocxArrayBuffer = async (arrayBuffer: ArrayBuffer): Promise<string> => {
+      if (!window.mammoth) {
+          throw new Error("Mammoth library not loaded.");
+      }
+      const result = await window.mammoth.extractRawText({ arrayBuffer });
+      return result.value;
+  };
+
   const handleFileLoad = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -408,8 +417,7 @@ const CVTailor: React.FC = () => {
         let text = '';
         if (fileName.endsWith('.docx')) {
             const arrayBuffer = await file.arrayBuffer();
-            const result = await window.mammoth.extractRawText({ arrayBuffer });
-            text = result.value;
+            text = await parseDocxArrayBuffer(arrayBuffer);
         } else {
             text = await file.text();
         }
