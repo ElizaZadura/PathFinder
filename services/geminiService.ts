@@ -10,6 +10,12 @@ if (!process.env.API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+// Helper to clean up text (e.g. replace literal \n with actual newlines)
+function cleanText(text: string): string {
+    if (!text) return "";
+    return text.replace(/\\n/g, '\n').replace(/\\r/g, '').trim();
+}
+
 export async function getJobDescriptionFromUrl(url: string): Promise<string> {
   // Special handling for arbetsformedlingen.se, which uses a public API.
   // This is more reliable than using the general-purpose Gemini fetcher.
@@ -57,11 +63,41 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
       }
       
       if (description && description.trim().length > 0) {
-        return description;
-      } else {
-        console.error("Arbetsförmedlingen API response structure unknown:", data);
-        throw new Error("Job description not found in the Arbetsförmedlingen API response.");
+        return cleanText(description);
+      } 
+
+      // Fallback: If structural extraction failed, ask Gemini to extract it from the JSON.
+      // This handles cases where the API structure might have changed or is unexpected.
+      try {
+        console.warn("Standard extraction failed, attempting to parse API response with Gemini.");
+        const jsonString = JSON.stringify(data).slice(0, 30000); // Limit size to avoid excessive token usage
+
+        const extractPrompt = `
+            Analyze the following JSON response from a job board API.
+            Extract the main job description text. 
+            Return ONLY the plain text of the job description.
+            
+            JSON Data:
+            ${jsonString}
+        `;
+
+        const extractResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: extractPrompt,
+        });
+        
+        const extractedText = extractResponse.text.trim();
+        if (extractedText && extractedText.length > 50) {
+            return cleanText(extractedText);
+        }
+      } catch (fallbackError) {
+        console.error("Gemini fallback extraction failed:", fallbackError);
       }
+
+      // If both manual extraction and Gemini fallback fail
+      console.error("Arbetsförmedlingen API response structure unknown:", data);
+      throw new Error("Job description not found in the Arbetsförmedlingen API response.");
+
     } catch (apiError) {
       console.error("Error fetching from Arbetsförmedlingen API:", apiError);
       throw new Error("Failed to fetch job description from the Arbetsförmedlingen API. Please try pasting the text manually.");
@@ -101,7 +137,7 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
         throw new Error(`${modelError || 'Could not retrieve a job description from the provided URL.'} This can happen with complex websites (like LinkedIn) or private job postings. Please try copying and pasting the text manually.`);
     }
 
-    return resultText;
+    return cleanText(resultText);
   } catch (error) {
     console.error("Error getting job description from URL:", error);
     if (error instanceof Error) {
