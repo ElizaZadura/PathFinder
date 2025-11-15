@@ -2,9 +2,10 @@
 import React, { useState } from 'react';
 import CVTailor from './components/CVTailor';
 import LiveConversation from './components/LiveConversation';
-import { BotIcon, EditIcon } from './components/icons';
+import ProfileBuilder from './components/ProfileBuilder';
+import { BotIcon, EditIcon, FileStackIcon } from './components/icons';
 
-type Tab = 'cv' | 'live';
+type Tab = 'cv' | 'live' | 'profile';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('cv');
@@ -15,12 +16,13 @@ const App: React.FC = () => {
         return <CVTailor />;
       case 'live':
         return <LiveConversation />;
+      case 'profile':
+        return <ProfileBuilder />;
       default:
         return null;
     }
   };
 
-  // FIX: Changed icon type from JSX.Element to React.ReactNode to resolve "Cannot find namespace 'JSX'" error.
   const TabButton = ({ tab, label, icon }: { tab: Tab; label: string; icon: React.ReactNode }) => (
     <button
       onClick={() => setActiveTab(tab)}
@@ -45,7 +47,8 @@ const App: React.FC = () => {
           <p className="mt-2 text-gray-400">CV Tailoring & Live Conversation</p>
         </header>
 
-        <nav className="mb-8 p-1.5 bg-gray-800/50 rounded-xl shadow-md max-w-sm mx-auto grid grid-cols-2 gap-2">
+        <nav className="mb-8 p-1.5 bg-gray-800/50 rounded-xl shadow-md max-w-lg mx-auto grid grid-cols-3 gap-2">
+          <TabButton tab="profile" label="Profile Builder" icon={<FileStackIcon />} />
           <TabButton tab="cv" label="CV Tailor" icon={<EditIcon />} />
           <TabButton tab="live" label="Live Chat" icon={<BotIcon />} />
         </nav>

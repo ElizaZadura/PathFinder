@@ -151,18 +151,57 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
   }
 }
 
+export async function generateMasterProfile(docs: string[]): Promise<string> {
+  try {
+    const combinedDocs = docs.map((doc, index) => `--- DOCUMENT ${index + 1} ---\n${doc}`).join('\n\n');
+
+    const prompt = `
+      You are an expert Career Architect. I have provided you with the text content from ${docs.length} different documents (Old CVs, Project Summaries, LinkedIn exports, etc.).
+
+      **Your Task:**
+      Analyze all these documents to create a single, comprehensive **Master Career Profile** in Markdown format.
+
+      **Instructions:**
+      1.  **Consolidate & De-duplicate:** Merge similar work experiences. If one document has more detail for a specific role (e.g., dates, bullets), use the most detailed version.
+      2.  **Timeline:** Organize the "Professional Experience" section chronologically (newest first).
+      3.  **Skills:** Aggregate all technical and soft skills into a structured "Skills" section (e.g., Languages, Frameworks, Tools).
+      4.  **Projects:** Create a detailed "Projects" section. If a project is mentioned in multiple docs, combine the details.
+      5.  **Education & Certifications:** List all distinct degrees and certifications.
+      6.  **Formatting:** Use clear Markdown headings (#, ##, ###) and bullet points.
+      7.  **Completeness:** Do not summarize briefly; we want a *comprehensive* database of the candidate's entire history to be used for future tailoring.
+
+      **Input Documents:**
+      ${combinedDocs}
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-pro',
+      contents: prompt,
+    });
+
+    return cleanText(response.text);
+  } catch (error) {
+    console.error("Error generating master profile:", error);
+    throw new Error("Failed to generate Master Profile from Gemini API.");
+  }
+}
+
 export async function getTailoredCV(cv: string, jobPosting: string, language: string): Promise<{ tailoredCv: string; changesSummary: string; suggestedFilename: string; }> {
   try {
     const prompt = `
-      Based on the following resume and job description, please rewrite the resume to highlight the most relevant skills and experiences for this specific job application.
-      The final rewritten resume should be concise and ideally not exceed the length of two standard A4 pages.
-      Maintain a professional tone and structure. The final rewritten resume must be in **${language}**.
+      Based on the following "Master Resume/Profile" and "Job Description", please write a specifically tailored resume for this job application.
+
+      **Instructions:**
+      1.  Select the most relevant experience from the Master Profile that matches the Job Description.
+      2.  The final resume should be concise (max 2 pages) but impactful.
+      3.  Maintain a professional tone.
+      4.  Language: **${language}**.
 
       After rewriting the resume, provide:
-      1. A brief summary of the key changes you made (formatted as a markdown list).
-      2. A suggested ATS-compliant filename for the resume file (e.g. "FirstName-LastName-JobTitle"). Do NOT include the file extension.
+      1. A brief summary of the key changes/selections you made.
+      2. A suggested ATS-compliant filename (e.g. "FirstName-LastName-JobTitle").
 
-      **Original Resume:**
+      **Master Profile / Original Resume:**
       ${cv}
 
       **Job Description:**

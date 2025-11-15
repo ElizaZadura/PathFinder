@@ -1,7 +1,8 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter, extractJobDataForCSV } from '../services/geminiService';
-import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon } from './icons';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon } from './icons';
+import { extractTextFromFile } from '../utils/fileHelpers';
 import type { ATSReport, JobData } from '../types';
 
 // Extend the Window interface to include the global libraries from scripts in index.html
@@ -169,6 +170,7 @@ const CVTailor: React.FC = () => {
   const [isCvSaveOpen, setIsCvSaveOpen] = useState<boolean>(false);
   const [isClSaveOpen, setIsClSaveOpen] = useState<boolean>(false);
   const [isExportingCsv, setIsExportingCsv] = useState<boolean>(false);
+  const [hasMasterProfile, setHasMasterProfile] = useState<boolean>(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cvSaveDropdownRef = useRef<HTMLDivElement>(null);
@@ -178,6 +180,21 @@ const CVTailor: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('userCv', cv);
   }, [cv]);
+
+  // Check if Master Profile exists in storage
+  useEffect(() => {
+      const profile = localStorage.getItem('masterProfile');
+      setHasMasterProfile(!!profile && profile.length > 0);
+      
+      // Interval to check if profile was added via another tab (Profile Builder)
+      const interval = setInterval(() => {
+        const p = localStorage.getItem('masterProfile');
+        if ((!!p && p.length > 0) !== hasMasterProfile) {
+           setHasMasterProfile(!!p && p.length > 0);
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+  }, [hasMasterProfile]);
 
   useEffect(() => {
     const checkLibraries = () => {
@@ -399,28 +416,13 @@ const CVTailor: React.FC = () => {
     }
   }, [cv, jobPosting, jobPostingUrl]);
 
-  const parseDocxArrayBuffer = async (arrayBuffer: ArrayBuffer): Promise<string> => {
-      if (!window.mammoth) {
-          throw new Error("Mammoth library not loaded.");
-      }
-      const result = await window.mammoth.extractRawText({ arrayBuffer });
-      return result.value;
-  };
-
   const handleFileLoad = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     setIsFileLoading(true);
     setError(null);
     try {
-        const fileName = file.name.toLowerCase();
-        let text = '';
-        if (fileName.endsWith('.docx')) {
-            const arrayBuffer = await file.arrayBuffer();
-            text = await parseDocxArrayBuffer(arrayBuffer);
-        } else {
-            text = await file.text();
-        }
+        const text = await extractTextFromFile(file);
         setCv(text);
     } catch (err) {
         setError(err instanceof Error ? `Failed to read file: ${err.message}` : "Failed to read or parse the selected file.");
@@ -428,6 +430,13 @@ const CVTailor: React.FC = () => {
         setIsFileLoading(false);
         if (event.target) event.target.value = '';
     }
+  };
+  
+  const handleLoadMasterProfile = () => {
+      const profile = localStorage.getItem('masterProfile');
+      if (profile) {
+          setCv(profile);
+      }
   };
 
   const handleClearCv = () => {
@@ -520,20 +529,27 @@ const CVTailor: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2 flex flex-col">
             <div className="flex justify-between items-center mb-2">
-                 <label htmlFor="cv-input" className="font-semibold text-gray-300">Your CV</label>
+                 <label htmlFor="cv-input" className="font-semibold text-gray-300">Your CV / Profile</label>
                  <div className="flex items-center gap-2">
-                    <button onClick={handleClearCv} disabled={!cv} title="Clear CV text" className="flex items-center gap-1.5 px-3 py-1 text-sm bg-gray-700 text-red-400 font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onClick={handleClearCv} disabled={!cv} title="Clear CV text" className="p-1 text-red-400 hover:text-red-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         <TrashIcon className="w-4 h-4" />
-                        <span>Clear</span>
                     </button>
-                    <input type="file" ref={fileInputRef} onChange={handleFileLoad} accept=".txt,.md,.text,.docx" style={{ display: 'none' }} />
-                    <button onClick={handleLoadClick} disabled={isFileLoading || !librariesReady} className="flex items-center justify-center w-[140px] gap-2 px-3 py-1 text-sm bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed">
+                    <input type="file" ref={fileInputRef} onChange={handleFileLoad} accept=".txt,.md,.text,.docx,.pdf" style={{ display: 'none' }} />
+                    
+                    {hasMasterProfile && (
+                        <button onClick={handleLoadMasterProfile} className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 transition-colors">
+                            <UserIcon className="w-3 h-3" />
+                            Load Master
+                        </button>
+                    )}
+
+                    <button onClick={handleLoadClick} disabled={isFileLoading || !librariesReady} className="flex items-center justify-center gap-2 px-3 py-1 text-sm bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed">
                         {isFileLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <UploadIcon className="w-4 h-4" />}
-                        {isFileLoading ? 'Parsing...' : (!librariesReady ? 'Initializing...' : 'Load from File')}
+                        {isFileLoading ? 'Reading...' : (!librariesReady ? 'Initializing...' : 'Load File')}
                     </button>
                  </div>
             </div>
-          <textarea id="cv-input" value={cv} onChange={(e) => setCv(e.target.value)} placeholder="Paste your CV here, or load a DOCX or TXT file." className={`${commonTextAreaClass} flex-grow`} />
+          <textarea id="cv-input" value={cv} onChange={(e) => setCv(e.target.value)} placeholder="Paste your CV here, load a file (PDF/DOCX), or use the Profile Builder to load a master profile." className={`${commonTextAreaClass} flex-grow`} />
         </div>
         <div className="flex flex-col gap-4">
             <div className="space-y-2">
