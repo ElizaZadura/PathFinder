@@ -1,5 +1,4 @@
 
-// FIX: Removed import of non-exported type 'LiveSession'.
 import { GoogleGenAI, Type, LiveServerMessage, Modality } from "@google/genai";
 import { ATSReport, JobData } from '../types';
 
@@ -247,9 +246,11 @@ export async function generateCoverLetter(cv: string, jobPosting: string, langua
       You are an expert career coach and professional writer. Based on the provided resume and job description, write a professional, concise, and compelling cover letter.
 
       **Crucial Language Instruction:**
-      The cover letter must be written in **${language}**. 
-      Do **NOT** simply translate the resume content or English phrases word-for-word. 
-      You **MUST write originally in ${language}**, using native-level phrasing, idioms, and professional etiquette appropriate for that specific language and culture. Avoid "Swenglish" or awkward direct translations.
+      The cover letter must be written in **${language}**.
+      **Do NOT translate** the resume content word-for-word.
+      Instead, **think and compose directly in ${language}**.
+      Use native-level phrasing, idioms, and professional etiquette appropriate for that specific language and culture.
+      If writing in Swedish, specifically ensure you avoid "Swenglish" (English sentence structures or idioms translated literally). The text must flow naturally for a native speaker.
 
       **Content Requirements:**
       1. Briefly introduce the candidate and the role they are applying for.
@@ -299,7 +300,7 @@ export async function refineCoverLetter(cv: string, jobPosting: string, currentC
         **Instructions:**
         1. Apply the changes from the "User's Refinement Request" to the "Current Cover Letter".
         2. The output must be in **${language}**.
-        3. Maintain native-level fluency and professional tone in **${language}**. Do not introduce awkward translations.
+        3. **Think in ${language}.** Do not translate from English. Maintain native-level fluency and professional tone. Avoid "Swenglish" if writing in Swedish.
         4. Keep the structure professional and standard.
 
         **Original Resume (for context):**

@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter, extractJobDataForCSV, refineCoverLetter } from '../services/geminiService';
-import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon } from './icons';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon, ChevronDownIcon } from './icons';
 import { extractTextFromFile } from '../utils/fileHelpers';
 import type { ATSReport, JobData } from '../types';
 
@@ -171,12 +171,14 @@ const CVTailor: React.FC = () => {
   const [isCheckingAts, setIsCheckingAts] = useState<boolean>(false);
   const [isCvSaveOpen, setIsCvSaveOpen] = useState<boolean>(false);
   const [isClSaveOpen, setIsClSaveOpen] = useState<boolean>(false);
-  const [isExportingCsv, setIsExportingCsv] = useState<boolean>(false);
+  const [isExportingData, setIsExportingData] = useState<boolean>(false);
+  const [isExportDataOpen, setIsExportDataOpen] = useState<boolean>(false);
   const [hasMasterProfile, setHasMasterProfile] = useState<boolean>(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cvSaveDropdownRef = useRef<HTMLDivElement>(null);
   const clSaveDropdownRef = useRef<HTMLDivElement>(null);
+  const exportDataDropdownRef = useRef<HTMLDivElement>(null);
   const fetchControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -217,15 +219,11 @@ const CVTailor: React.FC = () => {
       if (cvSaveDropdownRef.current && !cvSaveDropdownRef.current.contains(event.target as Node)) {
         setIsCvSaveOpen(false);
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
       if (clSaveDropdownRef.current && !clSaveDropdownRef.current.contains(event.target as Node)) {
         setIsClSaveOpen(false);
+      }
+      if (exportDataDropdownRef.current && !exportDataDropdownRef.current.contains(event.target as Node)) {
+        setIsExportDataOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -371,70 +369,95 @@ const CVTailor: React.FC = () => {
     }
   }, [tailoredCv, jobPosting]);
 
-  const handleExportCsv = useCallback(async () => {
+  const handleExportData = useCallback(async (format: 'csv' | 'json') => {
     if (!cv || !jobPosting) {
       setError('Please provide both your CV and the job posting to export data.');
       return;
     }
-    setIsExportingCsv(true);
+    setIsExportingData(true);
+    setIsExportDataOpen(false);
     setError(null);
     try {
       const data = await extractJobDataForCSV(cv, jobPosting);
       
-      const headers = [
-        "Application Date", "Position", "Status", "Salary", 
-        "Reference Link", "Contact", "Source", "CV Path", 
-        "Interview Date", "Next Action", "Notes"
-      ];
-      
-      const escapeCsvField = (field: string | undefined): string => {
-        if (field === undefined || field === null) return '""';
-        const str = String(field);
-        if (str.includes('"')) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return `"${str}"`;
-      };
+      const formattedSummary = changesSummary.length > 0 
+          ? (changesSummary.length > 1 ? "- " + changesSummary.join('\n- ') : changesSummary[0]) 
+          : "No changes recorded.";
 
-      const applicationDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      if (format === 'csv') {
+          const headers = [
+            "Application Date", "Position", "Status", "Salary", 
+            "Reference Link", "Contact", "Source", "CV Path", 
+            "Interview Date", "Next Action", "Notes", "CV Changes Summary"
+          ];
+          
+          const escapeCsvField = (field: string | undefined): string => {
+            if (field === undefined || field === null) return '""';
+            const str = String(field);
+            if (str.includes('"')) {
+              return `"${str.replace(/"/g, '""')}"`;
+            }
+            return `"${str}"`;
+          };
 
-      const rowData = [
-        applicationDate,
-        data.position,
-        "Applied",
-        data.salary,
-        jobPostingUrl,
-        data.contact,
-        data.source,
-        data.suggestedCvFilename,
-        "", // Interview Date is empty by default
-        data.nextAction,
-        data.notes,
-      ].map(escapeCsvField);
-      
-      const csvContent = [
-        headers.join(','),
-        rowData.join(',')
-      ].join('\n');
-      
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      const filename = `${data.companyName}-${data.position}.csv`.replace(/[^a-zA-Z0-9-.]/g, '_'); // Sanitize filename
-      link.setAttribute("download", filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+          const applicationDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+          const rowData = [
+            applicationDate,
+            data.position,
+            "Applied",
+            data.salary,
+            jobPostingUrl,
+            data.contact,
+            data.source,
+            data.suggestedCvFilename,
+            "", // Interview Date is empty by default
+            data.nextAction,
+            data.notes,
+            formattedSummary
+          ].map(escapeCsvField);
+          
+          const csvContent = [
+            headers.join(','),
+            rowData.join(',')
+          ].join('\n');
+          
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement("a");
+          const url = URL.createObjectURL(blob);
+          link.setAttribute("href", url);
+          const filename = `${data.companyName}-${data.position}.csv`.replace(/[^a-zA-Z0-9-.]/g, '_');
+          link.setAttribute("download", filename);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+      } else {
+          const jsonExportData = {
+              ...data,
+              cvChangesSummary: formattedSummary
+          };
+          const jsonContent = JSON.stringify(jsonExportData, null, 2);
+          const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+          const link = document.createElement("a");
+          const url = URL.createObjectURL(blob);
+          link.setAttribute("href", url);
+          const filename = `${data.companyName}-${data.position}.json`.replace(/[^a-zA-Z0-9-.]/g, '_');
+          link.setAttribute("download", filename);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+      }
 
     } catch (err) {
       setError('An error occurred while exporting job data. Please try again.');
     } finally {
-      setIsExportingCsv(false);
+      setIsExportingData(false);
     }
-  }, [cv, jobPosting, jobPostingUrl]);
+  }, [cv, jobPosting, jobPostingUrl, changesSummary]);
 
   const handleFileLoad = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -486,9 +509,10 @@ const CVTailor: React.FC = () => {
     setIsRefining(false);
     setIsRefiningCl(false);
     setIsCheckingAts(false);
-    setIsExportingCsv(false);
+    setIsExportingData(false);
     setIsCvSaveOpen(false);
     setIsClSaveOpen(false);
+    setIsExportDataOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
@@ -617,9 +641,47 @@ const CVTailor: React.FC = () => {
              <button onClick={handleGenerateCoverLetter} disabled={isGeneratingCoverLetter || !cv || !jobPosting} className="px-8 py-3 bg-teal-600 text-white font-bold rounded-lg shadow-lg hover:bg-teal-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-teal-500 min-w-[220px]">
               {isGeneratingCoverLetter ? 'Generating...' : 'Generate Cover Letter'}
             </button>
-            <button onClick={handleExportCsv} disabled={isExportingCsv || !cv || !jobPosting} className="px-8 py-3 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-green-500 min-w-[220px] flex items-center justify-center gap-2">
-              {isExportingCsv ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div><span>Exporting...</span></> : <><TableIcon /><span>Export Job Data</span></>}
-            </button>
+
+            <div className="relative inline-block text-left min-w-[220px]" ref={exportDataDropdownRef}>
+                <button
+                    onClick={() => setIsExportDataOpen(!isExportDataOpen)}
+                    disabled={isExportingData || !cv || !jobPosting}
+                    className="w-full px-8 py-3 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-green-500 flex items-center justify-center gap-2"
+                >
+                    {isExportingData ? (
+                        <>
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                            <span>Exporting...</span>
+                        </>
+                    ) : (
+                        <>
+                            <TableIcon />
+                            <span>Export Job Data</span>
+                            <ChevronDownIcon className="w-4 h-4 ml-1" />
+                        </>
+                    )}
+                </button>
+                
+                {isExportDataOpen && !isExportingData && (
+                    <div className="origin-top-right absolute right-0 mt-2 w-full rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-10">
+                        <div className="py-1">
+                            <button
+                                onClick={() => handleExportData('csv')}
+                                className="block w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-600 transition-colors flex items-center gap-2"
+                            >
+                               <span className="font-mono text-green-400 font-bold">CSV</span> Format
+                            </button>
+                            <button
+                                onClick={() => handleExportData('json')}
+                                className="block w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-600 transition-colors flex items-center gap-2"
+                            >
+                                <span className="font-mono text-yellow-400 font-bold">JSON</span> Format
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
             <button onClick={handleClearAll} disabled={nothingToClear} className="px-8 py-3 bg-transparent border border-red-500 text-red-400 font-bold rounded-lg hover:bg-red-500/20 disabled:border-gray-600 disabled:text-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 min-w-[220px] flex items-center justify-center gap-2">
                 <TrashIcon className="w-5 h-5" />
                 <span>Clear All</span>
