@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter, extractJobDataForCSV } from '../services/geminiService';
+import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter, extractJobDataForCSV, refineCoverLetter } from '../services/geminiService';
 import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon } from './icons';
 import { extractTextFromFile } from '../utils/fileHelpers';
 import type { ATSReport, JobData } from '../types';
@@ -163,6 +163,8 @@ const CVTailor: React.FC = () => {
   const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState<boolean>(false);
   const [isRefining, setIsRefining] = useState<boolean>(false);
   const [refinementRequest, setRefinementRequest] = useState<string>('');
+  const [isRefiningCl, setIsRefiningCl] = useState<boolean>(false);
+  const [clRefinementRequest, setClRefinementRequest] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [outputLanguage, setOutputLanguage] = useState<string>('English');
   const [atsReport, setAtsReport] = useState<ATSReport | null>(null);
@@ -333,6 +335,24 @@ const CVTailor: React.FC = () => {
     }
   }, [refinementRequest, tailoredCv, cv, jobPosting, outputLanguage]);
 
+  const handleRefineCl = useCallback(async () => {
+      if (!clRefinementRequest || !coverLetter) {
+          setError('Please provide a refinement request for the cover letter.');
+          return;
+      }
+      setIsRefiningCl(true);
+      setError(null);
+      try {
+          const result = await refineCoverLetter(cv, jobPosting, coverLetter, clRefinementRequest, outputLanguage);
+          setCoverLetter(result);
+          setClRefinementRequest('');
+      } catch (err) {
+          setError('An error occurred while refining your cover letter. Please try again.');
+      } finally {
+          setIsRefiningCl(false);
+      }
+  }, [clRefinementRequest, coverLetter, cv, jobPosting, outputLanguage]);
+
   const handleAtsCheck = useCallback(async () => {
     if (!tailoredCv || !jobPosting) {
       setError('Please tailor a CV first before checking ATS compliance.');
@@ -459,10 +479,12 @@ const CVTailor: React.FC = () => {
     setAtsReport(null);
     setSuggestedFilename('Tailored-CV');
     setRefinementRequest('');
+    setClRefinementRequest('');
     setIsFetchingUrl(false);
     setIsLoading(false);
     setIsGeneratingCoverLetter(false);
     setIsRefining(false);
+    setIsRefiningCl(false);
     setIsCheckingAts(false);
     setIsExportingCsv(false);
     setIsCvSaveOpen(false);
@@ -724,6 +746,26 @@ const CVTailor: React.FC = () => {
               </div>
             </div>
             <div className="p-6 bg-gray-800 border border-gray-700 rounded-lg whitespace-pre-wrap font-mono text-sm leading-relaxed">{coverLetter}</div>
+            
+            {/* Cover Letter Refinement UI */}
+            <div className="p-4 bg-gray-800/50 rounded-lg mt-6">
+                <h3 className="font-semibold text-lg mb-3 text-teal-400">Need Changes to Cover Letter?</h3>
+                <textarea 
+                    value={clRefinementRequest} 
+                    onChange={(e) => setClRefinementRequest(e.target.value)} 
+                    placeholder="e.g., 'Make the tone more formal', 'Emphasize my project management skills more', or 'Shorten the first paragraph'" 
+                    className={`${commonTextAreaClass} h-24`} 
+                />
+                <div className="text-right mt-2">
+                    <button 
+                        onClick={handleRefineCl} 
+                        disabled={isRefiningCl || !clRefinementRequest} 
+                        className="px-6 py-2 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center min-w-[120px] ml-auto"
+                    >
+                        {isRefiningCl ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : 'Refine Cover Letter'}
+                    </button>
+                </div>
+            </div>
           </div>
         )}
       </div>

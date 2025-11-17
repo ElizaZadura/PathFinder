@@ -244,17 +244,20 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
 export async function generateCoverLetter(cv: string, jobPosting: string, language: string): Promise<string> {
   try {
     const prompt = `
-      You are an expert career coach. Based on the provided resume and job description, write a professional, concise, and compelling cover letter.
+      You are an expert career coach and professional writer. Based on the provided resume and job description, write a professional, concise, and compelling cover letter.
 
-      The cover letter should:
-      1. Be written in **${language}**.
-      2. Be addressed appropriately (e.g., "Dear Hiring Manager," if no name is available).
-      3. Briefly introduce the candidate and the role they are applying for.
-      4. Highlight 2-3 key experiences or skills from the resume that directly align with the most important requirements in the job description.
-      5. Express enthusiasm for the role and the company.
-      6. End with a strong call to action (e.g., expressing eagerness for an interview).
-      7. Keep the tone professional and confident.
-      8. The entire cover letter should be around 3-4 paragraphs long.
+      **Crucial Language Instruction:**
+      The cover letter must be written in **${language}**. 
+      Do **NOT** simply translate the resume content or English phrases word-for-word. 
+      You **MUST write originally in ${language}**, using native-level phrasing, idioms, and professional etiquette appropriate for that specific language and culture. Avoid "Swenglish" or awkward direct translations.
+
+      **Content Requirements:**
+      1. Briefly introduce the candidate and the role they are applying for.
+      2. Highlight 2-3 key experiences or skills from the resume that directly align with the most important requirements in the job description.
+      3. Express enthusiasm for the role and the company.
+      4. End with a strong call to action (e.g., expressing eagerness for an interview).
+      5. Keep the tone professional, confident, and culturally appropriate for a ${language} workplace.
+      6. The entire cover letter should be around 3-4 paragraphs long.
 
       **Candidate's Resume:**
       ${cv}
@@ -286,6 +289,55 @@ export async function generateCoverLetter(cv: string, jobPosting: string, langua
     console.error("Error generating cover letter:", error);
     throw new Error("Failed to generate cover letter from Gemini API.");
   }
+}
+
+export async function refineCoverLetter(cv: string, jobPosting: string, currentCoverLetter: string, refinementRequest: string, language: string): Promise<string> {
+    try {
+        const prompt = `
+        You are an expert professional writer and career coach. Your task is to refine an existing cover letter based on a user's specific request.
+
+        **Instructions:**
+        1. Apply the changes from the "User's Refinement Request" to the "Current Cover Letter".
+        2. The output must be in **${language}**.
+        3. Maintain native-level fluency and professional tone in **${language}**. Do not introduce awkward translations.
+        4. Keep the structure professional and standard.
+
+        **Original Resume (for context):**
+        ${cv}
+
+        **Job Description (for context):**
+        ${jobPosting}
+
+        **Current Cover Letter:**
+        ${currentCoverLetter}
+
+        **User's Refinement Request:**
+        ${refinementRequest}
+        `;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-pro',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        coverLetter: {
+                            type: Type.STRING,
+                            description: "The full, refined cover letter text."
+                        }
+                    }
+                }
+            }
+        });
+        
+        const result = JSON.parse(response.text);
+        return result.coverLetter;
+    } catch (error) {
+        console.error("Error refining cover letter:", error);
+        throw new Error("Failed to refine cover letter using the Gemini API.");
+    }
 }
 
 export async function refineCV(cv: string, jobPosting: string, currentTailoredCv: string, refinementRequest: string, language: string): Promise<{ tailoredCv: string; changesSummary: string; }> {
