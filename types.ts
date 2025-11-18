@@ -30,6 +30,7 @@ export interface ATSReport {
 export interface JobData {
     position: string;
     companyName: string;
+    companyDescription: string;
     salary: string;
     contact: string;
     source: string;

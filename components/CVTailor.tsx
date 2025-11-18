@@ -386,7 +386,7 @@ const CVTailor: React.FC = () => {
 
       if (format === 'csv') {
           const headers = [
-            "Application Date", "Position", "Status", "Salary", 
+            "Application Date", "Position", "Company", "Company Description", "Status", "Salary", 
             "Reference Link", "Contact", "Source", "CV Path", 
             "Interview Date", "Next Action", "Notes", "CV Changes Summary"
           ];
@@ -405,6 +405,8 @@ const CVTailor: React.FC = () => {
           const rowData = [
             applicationDate,
             data.position,
+            data.companyName,
+            data.companyDescription,
             "Applied",
             data.salary,
             jobPostingUrl,

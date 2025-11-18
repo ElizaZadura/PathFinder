@@ -553,6 +553,7 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
 
       - For 'position', extract the exact job title.
       - For 'companyName', extract the company that is hiring.
+      - For 'companyDescription', provide a brief (1-2 sentences) summary of what the company does based on the text.
       - For 'salary', extract any mention of salary or compensation. If not found, return "Empty".
       - For 'contact', find a hiring manager's name or a contact email. If none, return "Empty".
       - For 'source', identify the platform where the job was posted (e.g., LinkedIn, Indeed, Company Website). If you cannot determine it from the text, return "Empty".
@@ -577,6 +578,7 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
           properties: {
             position: { type: Type.STRING, description: 'The job title or position.' },
             companyName: { type: Type.STRING, description: 'The name of the company.' },
+            companyDescription: { type: Type.STRING, description: 'A brief 1-2 sentence summary of what the company does.' },
             salary: { type: Type.STRING, description: 'The salary or salary range mentioned. Return "Empty" if not found.' },
             contact: { type: Type.STRING, description: 'The contact person or email mentioned. Return "Empty" if not found.' },
             source: { type: Type.STRING, description: 'The source platform (e.g., LinkedIn, company website). Infer from the job posting text or URL context.' },
@@ -584,7 +586,7 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
             nextAction: { type: Type.STRING, description: 'A suggested next action, like "Follow up in one week".' },
             notes: { type: Type.STRING, description: 'A brief, one-sentence summary of the role.' },
           },
-          required: ['position', 'companyName', 'salary', 'contact', 'source', 'suggestedCvFilename', 'nextAction', 'notes'],
+          required: ['position', 'companyName', 'companyDescription', 'salary', 'contact', 'source', 'suggestedCvFilename', 'nextAction', 'notes'],
         },
       },
     });
