@@ -33,7 +33,6 @@ export interface JobData {
     companyDescription: string;
     salary: string;
     contact: string;
-    source: string;
     suggestedCvFilename: string;
     nextAction: string;
     notes: string;

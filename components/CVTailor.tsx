@@ -387,7 +387,7 @@ const CVTailor: React.FC = () => {
       if (format === 'csv') {
           const headers = [
             "Application Date", "Position", "Company", "Company Description", "Status", "Salary", 
-            "Reference Link", "Contact", "Source", "CV Path", 
+            "Reference Link", "Contact", "CV Path", 
             "Interview Date", "Next Action", "Notes", "CV Changes Summary"
           ];
           
@@ -411,7 +411,6 @@ const CVTailor: React.FC = () => {
             data.salary,
             jobPostingUrl,
             data.contact,
-            data.source,
             data.suggestedCvFilename,
             "", // Interview Date is empty by default
             data.nextAction,

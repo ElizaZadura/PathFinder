@@ -556,7 +556,6 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
       - For 'companyDescription', provide a brief (1-2 sentences) summary of what the company does based on the text.
       - For 'salary', extract any mention of salary or compensation. If not found, return "Empty".
       - For 'contact', find a hiring manager's name or a contact email. If none, return "Empty".
-      - For 'source', identify the platform where the job was posted (e.g., LinkedIn, Indeed, Company Website). If you cannot determine it from the text, return "Empty".
       - For 'suggestedCvFilename', create a standard filename like 'FirstName-LastName-Role.pdf' based on the candidate's name from the CV.
       - For 'nextAction', suggest a simple follow-up action like "Follow up in one week".
       - For 'notes', write a very brief, one-sentence summary of the job's core responsibility.
@@ -581,12 +580,11 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
             companyDescription: { type: Type.STRING, description: 'A brief 1-2 sentence summary of what the company does.' },
             salary: { type: Type.STRING, description: 'The salary or salary range mentioned. Return "Empty" if not found.' },
             contact: { type: Type.STRING, description: 'The contact person or email mentioned. Return "Empty" if not found.' },
-            source: { type: Type.STRING, description: 'The source platform (e.g., LinkedIn, company website). Infer from the job posting text or URL context.' },
             suggestedCvFilename: { type: Type.STRING, description: 'A suggested filename for the CV, like "FirstName-LastName-Role-CV.pdf". Infer from the CV text.' },
             nextAction: { type: Type.STRING, description: 'A suggested next action, like "Follow up in one week".' },
             notes: { type: Type.STRING, description: 'A brief, one-sentence summary of the role.' },
           },
-          required: ['position', 'companyName', 'companyDescription', 'salary', 'contact', 'source', 'suggestedCvFilename', 'nextAction', 'notes'],
+          required: ['position', 'companyName', 'companyDescription', 'salary', 'contact', 'suggestedCvFilename', 'nextAction', 'notes'],
         },
       },
     });
