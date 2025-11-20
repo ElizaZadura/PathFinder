@@ -14,13 +14,26 @@ const ProfileBuilder: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [masterProfile, setMasterProfile] = useState<string>(() => localStorage.getItem('masterProfile') || '');
   const [error, setError] = useState<string | null>(null);
+  const [isSaveOpen, setIsSaveOpen] = useState<boolean>(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const saveDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (masterProfile) {
       localStorage.setItem('masterProfile', masterProfile);
     }
   }, [masterProfile]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (saveDropdownRef.current && !saveDropdownRef.current.contains(event.target as Node)) {
+        setIsSaveOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0) return;
@@ -67,16 +80,37 @@ const ProfileBuilder: React.FC = () => {
     }
   };
 
-  const handleSaveProfile = () => {
-     const blob = new Blob([masterProfile], { type: 'text/plain;charset=utf-8' });
+  const handleSaveProfile = (format: 'md' | 'json') => {
+     if (!masterProfile) return;
+
+     let blob: Blob;
+     let filename: string;
+
+     if (format === 'json') {
+         const data = { masterProfile };
+         blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+         filename = 'Master_Career_Profile.json';
+     } else {
+         blob = new Blob([masterProfile], { type: 'text/markdown;charset=utf-8' });
+         filename = 'Master_Career_Profile.md';
+     }
+
      const url = URL.createObjectURL(blob);
      const link = document.createElement('a');
      link.href = url;
-     link.download = 'Master_Career_Profile.md';
+     link.download = filename;
      document.body.appendChild(link);
      link.click();
      document.body.removeChild(link);
      URL.revokeObjectURL(url);
+     setIsSaveOpen(false);
+  };
+
+  const handleClearProfile = () => {
+    if (window.confirm("Are you sure you want to clear the current Master Profile? This action cannot be undone.")) {
+      setMasterProfile('');
+      localStorage.removeItem('masterProfile');
+    }
   };
 
   return (
@@ -143,10 +177,37 @@ const ProfileBuilder: React.FC = () => {
         <div className="space-y-4 animate-fade-in">
            <div className="flex justify-between items-center">
              <h3 className="text-xl font-semibold text-gray-200">Your Master Profile</h3>
-             <button onClick={handleSaveProfile} className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium">
-               <DownloadIcon className="w-4 h-4" />
-               Save as Markdown
-             </button>
+             <div className="flex items-center gap-2">
+                <button 
+                    onClick={handleClearProfile} 
+                    className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-sm font-medium transition-colors"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                  Clear Profile
+                </button>
+                
+                <div className="relative" ref={saveDropdownRef}>
+                    <button 
+                        onClick={() => setIsSaveOpen(!isSaveOpen)} 
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors text-white"
+                    >
+                        <DownloadIcon className="w-4 h-4" />
+                        Save As...
+                    </button>
+                    {isSaveOpen && (
+                        <div className="origin-top-right absolute right-0 mt-2 w-52 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-10">
+                            <div className="py-1">
+                                <button onClick={() => handleSaveProfile('md')} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 transition-colors">
+                                    Save as Markdown (.md)
+                                </button>
+                                <button onClick={() => handleSaveProfile('json')} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 transition-colors">
+                                    Save as JSON (.json)
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+             </div>
            </div>
            <textarea 
              value={masterProfile} 
