@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 export const MicIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
@@ -114,5 +113,11 @@ export const FileStackIcon: React.FC<{ className?: string }> = ({ className = 'w
 export const SparklesIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+  </svg>
+);
+
+export const PenIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
   </svg>
 );

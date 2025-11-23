@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, LiveServerMessage, Modality } from "@google/genai";
 import { ATSReport, JobData } from '../types';
 
@@ -623,6 +622,47 @@ export async function generateJobInsights(cv: string, jobPosting: string, query:
   } catch (error) {
     console.error("Error generating job insights:", error);
     throw new Error("Failed to generate insights.");
+  }
+}
+
+export async function generateApplicationAnswer(cv: string, jobPosting: string, question: string): Promise<string> {
+  try {
+    const prompt = `
+      You are assisting a candidate in filling out a job application form.
+      Using the provided CV/Profile and Job Description as context, write a short answer to the specific question asked by the employer.
+
+      **Employer Question:**
+      ${question}
+
+      **Candidate CV/Profile:**
+      ${cv}
+
+      **Job Description:**
+      ${jobPosting}
+
+      **Rules:**
+      - Length: 2–5 sentences maximum.
+      - Truthfulness: Absolutely no fabricated skills, experience, or achievements. Stick to facts in the CV.
+      - Formatting: Use strict plain ASCII characters only. No curly quotes (“”), no em-dashes (—), use standard hyphens (-).
+      - Tone: Natural, human, and direct. Avoid "AI polish", buzzwords, or flowery language.
+      - Perspective: Write in the first person ("I").
+      - Strategy: Do not summarize the entire CV. Choose one strong, specific angle that fits the question best.
+    `;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+    });
+
+    const text = cleanText(response.text);
+    // Extra safety: manually replace common smart quotes just in case
+    return text
+        .replace(/[\u2018\u2019]/g, "'")
+        .replace(/[\u201C\u201D]/g, '"')
+        .replace(/[\u2013\u2014]/g, '-');
+  } catch (error) {
+    console.error("Error generating application answer:", error);
+    throw new Error("Failed to generate answer.");
   }
 }
 

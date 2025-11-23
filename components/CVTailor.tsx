@@ -1,7 +1,6 @@
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter, extractJobDataForCSV, refineCoverLetter, generateJobInsights } from '../services/geminiService';
-import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon, ChevronDownIcon, SparklesIcon } from './icons';
+import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter, extractJobDataForCSV, refineCoverLetter, generateJobInsights, generateApplicationAnswer } from '../services/geminiService';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon, ChevronDownIcon, SparklesIcon, PenIcon } from './icons';
 import { extractTextFromFile } from '../utils/fileHelpers';
 import type { ATSReport, JobData } from '../types';
 
@@ -180,6 +179,12 @@ const CVTailor: React.FC = () => {
   const [insightQuery, setInsightQuery] = useState<string>('');
   const [insightResult, setInsightResult] = useState<string>('');
   const [isGeneratingInsight, setIsGeneratingInsight] = useState<boolean>(false);
+
+  // Application Q&A State
+  const [isQaOpen, setIsQaOpen] = useState<boolean>(false);
+  const [qaQuestion, setQaQuestion] = useState<string>('');
+  const [qaAnswer, setQaAnswer] = useState<string>('');
+  const [isGeneratingQa, setIsGeneratingQa] = useState<boolean>(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cvSaveDropdownRef = useRef<HTMLDivElement>(null);
@@ -512,6 +517,8 @@ const CVTailor: React.FC = () => {
     setClRefinementRequest('');
     setInsightQuery('');
     setInsightResult('');
+    setQaQuestion('');
+    setQaAnswer('');
     setIsFetchingUrl(false);
     setIsLoading(false);
     setIsGeneratingCoverLetter(false);
@@ -523,6 +530,7 @@ const CVTailor: React.FC = () => {
     setIsClSaveOpen(false);
     setIsExportDataOpen(false);
     setIsInsightsOpen(false);
+    setIsQaOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
@@ -592,6 +600,21 @@ const CVTailor: React.FC = () => {
       } finally {
           setIsGeneratingInsight(false);
       }
+  };
+
+  const handleQaSubmit = async () => {
+    if (!qaQuestion || !cv || !jobPosting) return;
+    
+    setIsGeneratingQa(true);
+    setError(null);
+    try {
+        const result = await generateApplicationAnswer(cv, jobPosting, qaQuestion);
+        setQaAnswer(result);
+    } catch (e) {
+        setError("Failed to generate answer.");
+    } finally {
+        setIsGeneratingQa(false);
+    }
   };
 
   const nothingToClear = !cv && !jobPosting && !jobPostingUrl && !tailoredCv && !coverLetter && !atsReport && keywords.length === 0;
@@ -717,6 +740,15 @@ const CVTailor: React.FC = () => {
                 <SparklesIcon className="w-5 h-5" />
                 <span>Job Insights</span>
             </button>
+            
+            <button 
+                onClick={() => setIsQaOpen(!isQaOpen)} 
+                disabled={!cv || !jobPosting}
+                className={`px-8 py-3 border border-purple-400 text-purple-300 font-bold rounded-lg hover:bg-purple-500/10 disabled:border-gray-600 disabled:text-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-purple-500 min-w-[220px] flex items-center justify-center gap-2 ${isQaOpen ? 'bg-purple-500/20' : ''}`}
+            >
+                <PenIcon className="w-5 h-5" />
+                <span>App Q&A</span>
+            </button>
 
             <button onClick={handleClearAll} disabled={nothingToClear} className="px-8 py-3 bg-transparent border border-red-500 text-red-400 font-bold rounded-lg hover:bg-red-500/20 disabled:border-gray-600 disabled:text-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 min-w-[220px] flex items-center justify-center gap-2">
                 <TrashIcon className="w-5 h-5" />
@@ -769,6 +801,55 @@ const CVTailor: React.FC = () => {
                         <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700 mt-4">
                             <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap">
                                 {insightResult}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
+        {/* Application Question Panel */}
+        {isQaOpen && (
+            <div className="mt-4 p-6 bg-gray-800 border border-purple-500/30 rounded-xl shadow-lg animate-fade-in max-w-4xl mx-auto">
+                <h3 className="text-xl font-bold text-purple-300 mb-4 flex items-center gap-2">
+                    <PenIcon className="w-5 h-5" />
+                    Application Form Answer Generator
+                </h3>
+                <p className="text-sm text-gray-400 mb-4">Paste the exact question from the job application form to generate a short, natural, and direct answer.</p>
+                
+                <div className="space-y-4">
+                    <div className="flex gap-2 flex-col">
+                        <textarea 
+                            value={qaQuestion}
+                            onChange={(e) => setQaQuestion(e.target.value)}
+                            placeholder="e.g. 'Why do you want to work at this company?' or 'Describe a challenging project you worked on.'"
+                            className="w-full h-24 p-3 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none"
+                        />
+                        <div className="flex justify-end">
+                            <button 
+                                onClick={handleQaSubmit} 
+                                disabled={!qaQuestion || isGeneratingQa}
+                                className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors disabled:bg-gray-600"
+                            >
+                                {isGeneratingQa ? 'Generating...' : 'Generate Answer'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {isGeneratingQa && (
+                        <div className="flex justify-center py-4">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
+                        </div>
+                    )}
+
+                    {qaAnswer && (
+                        <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700 mt-4">
+                             <div className="flex justify-between items-center mb-2">
+                                <span className="text-xs text-gray-400 uppercase font-semibold tracking-wider">Generated Answer</span>
+                                <button onClick={() => copyToClipboard(qaAnswer, "Answer")} className="text-xs text-purple-400 hover:text-purple-300">Copy</button>
+                             </div>
+                            <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap font-mono text-gray-200">
+                                {qaAnswer}
                             </div>
                         </div>
                     )}
