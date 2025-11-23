@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter, extractJobDataForCSV, refineCoverLetter } from '../services/geminiService';
-import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon, ChevronDownIcon } from './icons';
+import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter, extractJobDataForCSV, refineCoverLetter, generateJobInsights } from '../services/geminiService';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon, ChevronDownIcon, SparklesIcon } from './icons';
 import { extractTextFromFile } from '../utils/fileHelpers';
 import type { ATSReport, JobData } from '../types';
 
@@ -174,6 +174,12 @@ const CVTailor: React.FC = () => {
   const [isExportingData, setIsExportingData] = useState<boolean>(false);
   const [isExportDataOpen, setIsExportDataOpen] = useState<boolean>(false);
   const [hasMasterProfile, setHasMasterProfile] = useState<boolean>(false);
+  
+  // Job Insights State
+  const [isInsightsOpen, setIsInsightsOpen] = useState<boolean>(false);
+  const [insightQuery, setInsightQuery] = useState<string>('');
+  const [insightResult, setInsightResult] = useState<string>('');
+  const [isGeneratingInsight, setIsGeneratingInsight] = useState<boolean>(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cvSaveDropdownRef = useRef<HTMLDivElement>(null);
@@ -504,6 +510,8 @@ const CVTailor: React.FC = () => {
     setSuggestedFilename('Tailored-CV');
     setRefinementRequest('');
     setClRefinementRequest('');
+    setInsightQuery('');
+    setInsightResult('');
     setIsFetchingUrl(false);
     setIsLoading(false);
     setIsGeneratingCoverLetter(false);
@@ -514,6 +522,7 @@ const CVTailor: React.FC = () => {
     setIsCvSaveOpen(false);
     setIsClSaveOpen(false);
     setIsExportDataOpen(false);
+    setIsInsightsOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
@@ -566,6 +575,23 @@ const CVTailor: React.FC = () => {
     });
 
     doc.save(`${baseFilename}.pdf`);
+  };
+
+  const handleInsightSubmit = async (queryOverride?: string) => {
+      const query = queryOverride || insightQuery;
+      if (!query || !cv || !jobPosting) return;
+      
+      setIsGeneratingInsight(true);
+      setError(null);
+      setInsightResult('');
+      try {
+          const result = await generateJobInsights(cv, jobPosting, query);
+          setInsightResult(result);
+      } catch (e) {
+          setError("Failed to generate insights.");
+      } finally {
+          setIsGeneratingInsight(false);
+      }
   };
 
   const nothingToClear = !cv && !jobPosting && !jobPostingUrl && !tailoredCv && !coverLetter && !atsReport && keywords.length === 0;
@@ -682,12 +708,73 @@ const CVTailor: React.FC = () => {
                     </div>
                 )}
             </div>
+            
+            <button 
+                onClick={() => setIsInsightsOpen(!isInsightsOpen)} 
+                disabled={!cv || !jobPosting}
+                className={`px-8 py-3 border border-indigo-400 text-indigo-300 font-bold rounded-lg hover:bg-indigo-500/10 disabled:border-gray-600 disabled:text-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500 min-w-[220px] flex items-center justify-center gap-2 ${isInsightsOpen ? 'bg-indigo-500/20' : ''}`}
+            >
+                <SparklesIcon className="w-5 h-5" />
+                <span>Job Insights</span>
+            </button>
 
             <button onClick={handleClearAll} disabled={nothingToClear} className="px-8 py-3 bg-transparent border border-red-500 text-red-400 font-bold rounded-lg hover:bg-red-500/20 disabled:border-gray-600 disabled:text-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500 min-w-[220px] flex items-center justify-center gap-2">
                 <TrashIcon className="w-5 h-5" />
                 <span>Clear All</span>
             </button>
         </div>
+        
+        {/* Job Insights Panel */}
+        {isInsightsOpen && (
+            <div className="mt-4 p-6 bg-gray-800 border border-indigo-500/30 rounded-xl shadow-lg animate-fade-in max-w-4xl mx-auto">
+                <h3 className="text-xl font-bold text-indigo-300 mb-4 flex items-center gap-2">
+                    <SparklesIcon className="w-5 h-5" />
+                    Career Consultant & Job Insights
+                </h3>
+                
+                <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                         <span className="text-sm text-gray-400 mr-2 self-center">Quick Ask:</span>
+                         <button onClick={() => handleInsightSubmit("Why do you think I am a good fit for this role?")} disabled={isGeneratingInsight} className="px-3 py-1 bg-gray-700 hover:bg-indigo-600/50 text-xs rounded-full transition-colors border border-gray-600">Why am I a good fit?</button>
+                         <button onClick={() => handleInsightSubmit("What are my weak points or missing skills for this job?")} disabled={isGeneratingInsight} className="px-3 py-1 bg-gray-700 hover:bg-indigo-600/50 text-xs rounded-full transition-colors border border-gray-600">Weak points?</button>
+                         <button onClick={() => handleInsightSubmit("Draft 3 likely interview questions based on my CV and this job.")} disabled={isGeneratingInsight} className="px-3 py-1 bg-gray-700 hover:bg-indigo-600/50 text-xs rounded-full transition-colors border border-gray-600">Interview Questions</button>
+                         <button onClick={() => handleInsightSubmit("What salary range should I expect for this position?")} disabled={isGeneratingInsight} className="px-3 py-1 bg-gray-700 hover:bg-indigo-600/50 text-xs rounded-full transition-colors border border-gray-600">Salary Expectations</button>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <input 
+                            type="text" 
+                            value={insightQuery}
+                            onChange={(e) => setInsightQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleInsightSubmit()}
+                            placeholder="Ask a free-form question about your fit for this role..."
+                            className="flex-grow p-3 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        />
+                        <button 
+                            onClick={() => handleInsightSubmit()} 
+                            disabled={!insightQuery || isGeneratingInsight}
+                            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors disabled:bg-gray-600"
+                        >
+                            Ask
+                        </button>
+                    </div>
+
+                    {isGeneratingInsight && (
+                        <div className="flex justify-center py-4">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400"></div>
+                        </div>
+                    )}
+
+                    {insightResult && (
+                        <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700 mt-4">
+                            <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap">
+                                {insightResult}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
       </div>
 
       {error && <div className="text-center p-4 bg-red-900/50 text-red-300 rounded-lg">{error}</div>}

@@ -597,6 +597,34 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
   }
 }
 
+export async function generateJobInsights(cv: string, jobPosting: string, query: string): Promise<string> {
+  try {
+    const prompt = `
+      You are an expert career consultant. Analyze the provided CV and Job Description to answer the user's specific question.
+
+      **User Question:**
+      ${query}
+
+      **CV:**
+      ${cv}
+
+      **Job Description:**
+      ${jobPosting}
+
+      Provide a helpful, professional, and specific answer based strictly on the provided text.
+    `;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: prompt,
+    });
+
+    return cleanText(response.text);
+  } catch (error) {
+    console.error("Error generating job insights:", error);
+    throw new Error("Failed to generate insights.");
+  }
+}
 
 // FIX: Removed explicit return type 'Promise<LiveSession>' to allow type inference, as 'LiveSession' is not an exported type.
 export function connectToLiveSession(callbacks: {
