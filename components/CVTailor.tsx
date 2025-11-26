@@ -10,6 +10,7 @@ declare global {
   interface Window {
     mammoth: any;
     jspdf: any;
+    JSZip: any;
   }
 }
 
@@ -381,7 +382,7 @@ const CVTailor: React.FC = () => {
     }
   }, [tailoredCv, jobPosting]);
 
-  const handleExportData = useCallback(async (format: 'csv' | 'json') => {
+  const handleExportData = useCallback(async (format: 'csv' | 'json' | 'zip') => {
     if (!cv || !jobPosting) {
       setError('Please provide both your CV and the job posting to export data.');
       return;
@@ -396,8 +397,20 @@ const CVTailor: React.FC = () => {
           ? (changesSummary.length > 1 ? "- " + changesSummary.join('\n- ') : changesSummary[0]) 
           : "No changes recorded.";
 
-      if (format === 'csv') {
-          // Headers matched to Notion CSV import requirements
+      // Common data preparation
+      const escapeCsvField = (field: string | undefined): string => {
+        if (field === undefined || field === null) return '""';
+        const str = String(field);
+        if (str.includes('"')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return `"${str}"`;
+      };
+
+      const now = new Date();
+      const applicationDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      
+      const generateCSV = () => {
           const headers = [
             "Application Date",
             "Company",
@@ -415,19 +428,6 @@ const CVTailor: React.FC = () => {
             "Salary"
           ];
           
-          const escapeCsvField = (field: string | undefined): string => {
-            if (field === undefined || field === null) return '""';
-            const str = String(field);
-            if (str.includes('"')) {
-              return `"${str.replace(/"/g, '""')}"`;
-            }
-            return `"${str}"`;
-          };
-
-          // Format date as YYYY-MM-DD for better Notion import compatibility
-          const now = new Date();
-          const applicationDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
           const rowData = [
             applicationDate,
             data.companyName,
@@ -445,35 +445,62 @@ const CVTailor: React.FC = () => {
             data.salary
           ].map(escapeCsvField);
           
-          const csvContent = [
-            headers.join(','),
-            rowData.join(',')
-          ].join('\n');
+          return [headers.join(','), rowData.join(',')].join('\n');
+      };
+
+      const generateJSON = () => {
+          const jsonExportData = {
+              ...data,
+              applicationDate,
+              referenceLink: jobPostingUrl,
+              cvChangesSummary: formattedSummary,
+              coverLetterFilename: coverLetter ? "Cover-Letter.pdf" : ""
+          };
+          return JSON.stringify(jsonExportData, null, 2);
+      };
+
+      const baseFilename = `${data.companyName}-${data.position}`.replace(/[^a-zA-Z0-9-.]/g, '_');
+
+      if (format === 'zip') {
+          if (!window.JSZip) {
+              throw new Error("JSZip library is not loaded. Please refresh the page.");
+          }
+          const zip = new window.JSZip();
+          zip.file(`${baseFilename}.csv`, generateCSV());
+          zip.file(`${baseFilename}.json`, generateJSON());
+
+          const content = await zip.generateAsync({ type: "blob" });
           
-          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
           const link = document.createElement("a");
-          const url = URL.createObjectURL(blob);
+          const url = URL.createObjectURL(content);
           link.setAttribute("href", url);
-          const filename = `${data.companyName}-${data.position}.csv`.replace(/[^a-zA-Z0-9-.]/g, '_');
-          link.setAttribute("download", filename);
+          link.setAttribute("download", `${baseFilename}.zip`);
           link.style.visibility = 'hidden';
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
           URL.revokeObjectURL(url);
-      } else {
-          const jsonExportData = {
-              ...data,
-              cvChangesSummary: formattedSummary,
-              coverLetterFilename: coverLetter ? "Cover-Letter.pdf" : ""
-          };
-          const jsonContent = JSON.stringify(jsonExportData, null, 2);
+
+      } else if (format === 'csv') {
+          const csvContent = generateCSV();
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement("a");
+          const url = URL.createObjectURL(blob);
+          link.setAttribute("href", url);
+          link.setAttribute("download", `${baseFilename}.csv`);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+
+      } else if (format === 'json') {
+          const jsonContent = generateJSON();
           const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
           const link = document.createElement("a");
           const url = URL.createObjectURL(blob);
           link.setAttribute("href", url);
-          const filename = `${data.companyName}-${data.position}.json`.replace(/[^a-zA-Z0-9-.]/g, '_');
-          link.setAttribute("download", filename);
+          link.setAttribute("download", `${baseFilename}.json`);
           link.style.visibility = 'hidden';
           document.body.appendChild(link);
           link.click();
@@ -481,8 +508,9 @@ const CVTailor: React.FC = () => {
           URL.revokeObjectURL(url);
       }
 
-    } catch (err) {
-      setError('An error occurred while exporting job data. Please try again.');
+    } catch (err: any) {
+      console.error(err);
+      setError(`An error occurred while exporting job data: ${err.message || 'Unknown error'}`);
     } finally {
       setIsExportingData(false);
     }
@@ -743,6 +771,13 @@ const CVTailor: React.FC = () => {
                                 className="block w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-600 transition-colors flex items-center gap-2"
                             >
                                 <span className="font-mono text-yellow-400 font-bold">JSON</span> Format
+                            </button>
+                            <div className="border-t border-gray-600 my-1"></div>
+                            <button
+                                onClick={() => handleExportData('zip')}
+                                className="block w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-600 transition-colors flex items-center gap-2"
+                            >
+                                <span className="font-mono text-indigo-400 font-bold">ZIP</span> Both (Archive)
                             </button>
                         </div>
                     </div>
