@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter, extractJobDataForCSV, refineCoverLetter, generateJobInsights, generateApplicationAnswer } from '../services/geminiService';
 import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon, ChevronDownIcon, SparklesIcon, PenIcon } from './icons';
@@ -396,10 +397,22 @@ const CVTailor: React.FC = () => {
           : "No changes recorded.";
 
       if (format === 'csv') {
+          // Headers matched to Notion CSV import requirements
           const headers = [
-            "Application Date", "Position", "Company", "Company Description", "Status", "Salary", 
-            "Reference Link", "Contact", "CV Path", 
-            "Interview Date", "Next Action", "Notes", "CV Changes Summary"
+            "Application Date",
+            "Company",
+            "Position",
+            "Status",
+            "Reference Link",
+            "Next Action",
+            "Contact",
+            "CV Path",
+            "Notes",
+            "CV changes summary",
+            "Cover letter",
+            "Interview Date",
+            "Company description",
+            "Salary"
           ];
           
           const escapeCsvField = (field: string | undefined): string => {
@@ -411,22 +424,25 @@ const CVTailor: React.FC = () => {
             return `"${str}"`;
           };
 
-          const applicationDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+          // Format date as YYYY/MM/DD
+          const now = new Date();
+          const applicationDate = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
 
           const rowData = [
             applicationDate,
-            data.position,
             data.companyName,
-            data.companyDescription,
+            data.position,
             "Applied",
-            data.salary,
             jobPostingUrl,
+            data.nextAction,
             data.contact,
             data.suggestedCvFilename,
-            "", // Interview Date is empty by default
-            data.nextAction,
             data.notes,
-            formattedSummary
+            formattedSummary,
+            coverLetter ? "Cover-Letter.pdf" : "",
+            "", // Interview Date
+            data.companyDescription,
+            data.salary
           ].map(escapeCsvField);
           
           const csvContent = [
@@ -448,7 +464,8 @@ const CVTailor: React.FC = () => {
       } else {
           const jsonExportData = {
               ...data,
-              cvChangesSummary: formattedSummary
+              cvChangesSummary: formattedSummary,
+              coverLetterFilename: coverLetter ? "Cover-Letter.pdf" : ""
           };
           const jsonContent = JSON.stringify(jsonExportData, null, 2);
           const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
@@ -469,7 +486,7 @@ const CVTailor: React.FC = () => {
     } finally {
       setIsExportingData(false);
     }
-  }, [cv, jobPosting, jobPostingUrl, changesSummary]);
+  }, [cv, jobPosting, jobPostingUrl, changesSummary, coverLetter]);
 
   const handleFileLoad = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -911,7 +928,12 @@ const CVTailor: React.FC = () => {
                   <button onClick={() => copyToClipboard(tailoredCv, 'CV')} className="px-4 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors">Copy</button>
                 </div>
               </div>
-              <div className="p-6 bg-gray-800 border border-gray-700 rounded-lg whitespace-pre-wrap font-mono text-sm leading-relaxed">{tailoredCv}</div>
+              <textarea
+                value={tailoredCv}
+                onChange={(e) => setTailoredCv(e.target.value)}
+                className="w-full h-[800px] p-6 bg-gray-800 border border-gray-700 rounded-lg font-mono text-sm leading-relaxed focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-y text-gray-200"
+                spellCheck={false}
+              />
               
               <div className="text-center pt-4">
                 <button onClick={handleAtsCheck} disabled={isCheckingAts} className="px-6 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center min-w-[220px] mx-auto">
