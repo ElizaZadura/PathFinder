@@ -194,6 +194,7 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
       2.  The final resume should be concise (max 2 pages) but impactful.
       3.  Maintain a professional tone.
       4.  Language: **${language}**.
+      5.  **Strict Date Handling:** Do not alter dates. Repeat dates exactly as in the source CV, even if they appear inconsistent or unusual. Do not infer, adjust, or normalize dates. If a date appears incorrect, copy it verbatim.
 
       After rewriting the resume, provide:
       1. A brief summary of the key changes/selections you made.
