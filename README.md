@@ -4,11 +4,15 @@ A web application that leverages the Gemini API to help you tailor your CV for s
 
 ## Features
 
--   **CV Tailoring**: Automatically rewrites your CV to highlight the most relevant skills and experience for a given job posting.
+-   **Profile Builder**: Upload multiple documents (old CVs, project notes, LinkedIn exports) to create a comprehensive "Master Career Profile". This serves as a centralized database of your skills and experience for more accurate tailoring.
+-   **CV Tailoring**: Automatically rewrites your CV to highlight the most relevant skills and experience for a given job posting. Includes strict date handling to preserve your history.
+-   **Interactive Editing**: The tailored CV output is fully editable, allowing you to make manual tweaks before saving or analyzing.
 -   **Cover Letter Generation**: Creates a professional and compelling cover letter based on your CV and the job description.
--   **Interactive CV Refinement**: Allows you to provide natural language feedback (e.g., "make the summary more concise") to iteratively improve your tailored CV.
+-   **Job Insights**: Ask Gemini free-form questions about your fit for the role, potential weak points, likely interview questions, or salary expectations.
+-   **Application Q&A Helper**: A dedicated tool to generate short, natural, first-person answers for specific job application form questions (e.g., "Why do you want to work here?").
+-   **CV Refinement**: Allows you to provide natural language feedback (e.g., "make the summary more concise") to iteratively improve your tailored CV.
 -   **ATS Friendliness Analysis**: Scans your tailored CV against the job posting to provide a detailed Applicant Tracking System (ATS) compliance report, including keyword matching and structural feedback.
--   **Job Data Export**: Extracts key details (Position, Company, Salary, etc.) from the job posting and your CV into a CSV file, ready to be imported into your job application tracking software.
+-   **Job Data Export**: Extracts key details (Position, Company, Salary, etc.) into **CSV** or **JSON** formats, or download a **ZIP** archive containing both. Designed for easy import into tools like Notion.
 -   **Live Conversation**: Engage in a real-time, voice-based conversation with Gemini. Perfect for interview practice or general queries.
 
 ## How to Run/Build
@@ -44,18 +48,27 @@ To run this project locally, you'll need to have Node.js and a package manager l
 
 ## How to Use
 
+### Profile Builder
+
+1.  Navigate to the **Profile Builder** tab.
+2.  Upload relevant documents (old CVs, project summaries, etc.) using the upload button.
+3.  Click **Generate Master Profile** to create a consolidated markdown profile.
+4.  You can edit the profile manually, clear it, or save it as a `.md` or `.json` file.
+5.  This profile is automatically saved to local storage and can be quickly loaded in the CV Tailor tab.
+
 ### CV Tailor
 
 1.  Navigate to the **CV Tailor** tab.
-2.  Paste your current CV into the "Your CV" text area, or use the "Load from File" button to upload a `.docx` or `.txt` file. Your CV is automatically saved in your browser for future visits.
-3.  Provide the job description by either pasting a URL and clicking "Fetch" or pasting the text directly.
+2.  **Input CV**: Paste your current CV, upload a file (`.pdf`, `.docx`, `.txt`), or click **Load Master** to use your Master Profile.
+3.  **Input Job**: Paste a URL and click "Fetch", or paste the job description text directly.
 4.  Select your desired output language.
-5.  Click the **Tailor My CV** button. Your new, tailored CV will appear below, along with extracted keywords and a summary of changes.
-6.  Click **Generate Cover Letter** to create a cover letter based on the provided documents.
-7.  Use the **Refine CV** section to make further adjustments by typing in your requests.
-8.  Click **Analyze ATS Friendliness** to get a detailed report on how well your tailored CV is optimized for applicant tracking systems.
-9.  Click **Export Job Data** to download a CSV file with key application details for your personal tracking.
-10. You can save your tailored CV or cover letter as a `.txt` or `.pdf` file using the "Save As..." buttons.
+5.  Click **Tailor My CV**. The result is editable—feel free to tweak the text directly in the box.
+6.  **Job Insights**: Click the **Job Insights** button to ask questions about your fit for the role.
+7.  **App Q&A**: Click **App Q&A** to generate answers for specific application form questions.
+8.  **Cover Letter**: Click **Generate Cover Letter**.
+9.  **ATS Check**: Click **Analyze ATS Friendliness** for a compliance report.
+10. **Export**: Click **Export Job Data** to download details in CSV, JSON, or ZIP format.
+11. **Save**: Use the **Save As...** dropdowns to download your CV and Cover Letter as Text or PDF.
 
 ### Live Chat
 
