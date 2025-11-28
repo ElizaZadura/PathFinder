@@ -194,7 +194,7 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
       2.  The final resume should be concise (max 2 pages) but impactful.
       3.  Maintain a professional tone.
       4.  Language: **${language}**.
-      5.  **Strict Date Handling:** Do not alter dates. Repeat dates exactly as in the source CV, even if they appear inconsistent or unusual. Do not infer, adjust, or normalize dates. If a date appears incorrect, copy it verbatim.
+      5.  **Strict Date Handling:** Do not alter dates. Repeat dates exactly as in the source CV, even if they appear inconsistent or unusual. Do NOT add words like '(ongoing)', '(present)', '(expected)', or '(future)' if they are not in the source. Do not infer, adjust, or normalize dates. If a date appears incorrect, copy it **verbatim**.
 
       After rewriting the resume, provide:
       1. A brief summary of the key changes/selections you made.
@@ -559,6 +559,7 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
       - For 'suggestedCvFilename', create a standard filename like 'FirstName-LastName-Role.pdf' based on the candidate's name from the CV.
       - For 'nextAction', suggest a simple follow-up action like "Follow up in one week".
       - For 'notes', write a very brief, one-sentence summary of the job's core responsibility.
+      - For 'referenceUrl', extract the URL of the job posting if explicitly mentioned in the text. Return "Empty" if not found.
 
       **CV Text:**
       ${cv}
@@ -583,8 +584,9 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
             suggestedCvFilename: { type: Type.STRING, description: 'A suggested filename for the CV, like "FirstName-LastName-Role-CV.pdf". Infer from the CV text.' },
             nextAction: { type: Type.STRING, description: 'A suggested next action, like "Follow up in one week".' },
             notes: { type: Type.STRING, description: 'A brief, one-sentence summary of the role.' },
+            referenceUrl: { type: Type.STRING, description: 'The URL of the job posting if found in the text. Return "Empty" if not found.' },
           },
-          required: ['position', 'companyName', 'companyDescription', 'salary', 'contact', 'suggestedCvFilename', 'nextAction', 'notes'],
+          required: ['position', 'companyName', 'companyDescription', 'salary', 'contact', 'suggestedCvFilename', 'nextAction', 'notes', 'referenceUrl'],
         },
       },
     });

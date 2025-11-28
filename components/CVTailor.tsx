@@ -410,6 +410,9 @@ const CVTailor: React.FC = () => {
       const now = new Date();
       const applicationDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       
+      // Determine final reference link: Prefer manual input, fallback to extracted URL, default to empty.
+      const referenceLink = jobPostingUrl || (data.referenceUrl && data.referenceUrl !== 'Empty' ? data.referenceUrl : '');
+
       const generateCSV = () => {
           const headers = [
             "Application Date",
@@ -433,7 +436,7 @@ const CVTailor: React.FC = () => {
             data.companyName,
             data.position,
             "Applied",
-            jobPostingUrl,
+            referenceLink,
             data.nextAction,
             data.contact,
             data.suggestedCvFilename,
@@ -452,7 +455,7 @@ const CVTailor: React.FC = () => {
           const jsonExportData = {
               ...data,
               applicationDate,
-              referenceLink: jobPostingUrl,
+              referenceLink: referenceLink,
               cvChangesSummary: formattedSummary,
               coverLetterFilename: coverLetter ? "Cover-Letter.pdf" : ""
           };

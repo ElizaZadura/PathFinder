@@ -36,4 +36,5 @@ export interface JobData {
     suggestedCvFilename: string;
     nextAction: string;
     notes: string;
+    referenceUrl: string;
 }
