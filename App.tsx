@@ -1,14 +1,41 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CVTailor from './components/CVTailor';
 import LiveConversation from './components/LiveConversation';
 import ProfileBuilder from './components/ProfileBuilder';
-import { BotIcon, EditIcon, FileStackIcon } from './components/icons';
+import { BotIcon, EditIcon, FileStackIcon, SettingsIcon, DatabaseIcon } from './components/icons';
+import { initSupabase } from './services/supabaseService';
 
 type Tab = 'cv' | 'live' | 'profile';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('cv');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [supabaseUrl, setSupabaseUrl] = useState('');
+  const [supabaseKey, setSupabaseKey] = useState('');
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
+
+  useEffect(() => {
+    // Load saved settings
+    const savedUrl = localStorage.getItem('supabaseUrl') || '';
+    const savedKey = localStorage.getItem('supabaseKey') || '';
+    setSupabaseUrl(savedUrl);
+    setSupabaseKey(savedKey);
+    
+    if (savedUrl && savedKey) {
+        const connected = initSupabase();
+        setIsSupabaseConnected(connected);
+    }
+  }, []);
+
+  const handleSaveSettings = () => {
+    localStorage.setItem('supabaseUrl', supabaseUrl);
+    localStorage.setItem('supabaseKey', supabaseKey);
+    const connected = initSupabase();
+    setIsSupabaseConnected(connected);
+    setIsSettingsOpen(false);
+    alert('Supabase settings saved!');
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -38,7 +65,68 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 font-sans">
+    <div className="min-h-screen bg-gray-900 text-gray-100 font-sans relative">
+        {/* Settings Button */}
+        <div className="absolute top-4 right-4 z-50">
+            <button 
+                onClick={() => setIsSettingsOpen(true)}
+                className={`p-2 rounded-full transition-colors ${isSupabaseConnected ? 'bg-green-600/20 text-green-400' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                title="Database Settings"
+            >
+                <SettingsIcon />
+            </button>
+        </div>
+
+        {/* Settings Modal */}
+        {isSettingsOpen && (
+            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                <div className="bg-gray-800 rounded-xl max-w-md w-full p-6 border border-gray-700 shadow-2xl">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold flex items-center gap-2">
+                            <DatabaseIcon className="text-indigo-400" />
+                            Supabase Connection
+                        </h2>
+                        <button onClick={() => setIsSettingsOpen(false)} className="text-gray-400 hover:text-white">&times;</button>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Project URL</label>
+                            <input 
+                                type="text" 
+                                value={supabaseUrl} 
+                                onChange={(e) => setSupabaseUrl(e.target.value)}
+                                placeholder="https://xyz.supabase.co"
+                                className="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Anon API Key</label>
+                            <input 
+                                type="password" 
+                                value={supabaseKey} 
+                                onChange={(e) => setSupabaseKey(e.target.value)}
+                                placeholder="eyJh..."
+                                className="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
+                            />
+                        </div>
+                        <div className="bg-gray-900/50 p-3 rounded text-xs text-gray-400">
+                            <p>Enter your Supabase credentials to enable saving Profiles and Job Applications to the cloud.</p>
+                            <p className="mt-1">Required tables: <code className="text-indigo-300">master_profiles</code>, <code className="text-indigo-300">job_applications</code>.</p>
+                        </div>
+                        <div className="flex justify-end pt-2">
+                             <button 
+                                onClick={handleSaveSettings}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold"
+                             >
+                                Save Connection
+                             </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
       <div className="container mx-auto p-4 md:p-8">
         <header className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-500 to-pink-500">

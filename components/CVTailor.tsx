@@ -1,8 +1,9 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter, extractJobDataForCSV, refineCoverLetter, generateJobInsights, generateApplicationAnswer } from '../services/geminiService';
-import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon, ChevronDownIcon, SparklesIcon, PenIcon } from './icons';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon, ChevronDownIcon, SparklesIcon, PenIcon, DatabaseIcon } from './icons';
 import { extractTextFromFile } from '../utils/fileHelpers';
+import { saveJobApplicationToSupabase, getSupabaseClient } from '../services/supabaseService';
 import type { ATSReport, JobData } from '../types';
 
 // Extend the Window interface to include the global libraries from scripts in index.html
@@ -175,6 +176,7 @@ const CVTailor: React.FC = () => {
   const [isExportingData, setIsExportingData] = useState<boolean>(false);
   const [isExportDataOpen, setIsExportDataOpen] = useState<boolean>(false);
   const [hasMasterProfile, setHasMasterProfile] = useState<boolean>(false);
+  const [hasSupabase, setHasSupabase] = useState<boolean>(false);
   
   // Job Insights State
   const [isInsightsOpen, setIsInsightsOpen] = useState<boolean>(false);
@@ -209,6 +211,10 @@ const CVTailor: React.FC = () => {
         if ((!!p && p.length > 0) !== hasMasterProfile) {
            setHasMasterProfile(!!p && p.length > 0);
         }
+        
+        // Also check for Supabase config
+        const client = getSupabaseClient();
+        setHasSupabase(!!client);
       }, 1000);
       return () => clearInterval(interval);
   }, [hasMasterProfile]);
@@ -382,7 +388,7 @@ const CVTailor: React.FC = () => {
     }
   }, [tailoredCv, jobPosting]);
 
-  const handleExportData = useCallback(async (format: 'csv' | 'json' | 'zip') => {
+  const handleExportData = useCallback(async (format: 'csv' | 'json' | 'zip' | 'db') => {
     if (!cv || !jobPosting) {
       setError('Please provide both your CV and the job posting to export data.');
       return;
@@ -413,102 +419,121 @@ const CVTailor: React.FC = () => {
       // Determine final reference link: Prefer manual input, fallback to extracted URL, default to empty.
       const referenceLink = jobPostingUrl || (data.referenceUrl && data.referenceUrl !== 'Empty' ? data.referenceUrl : '');
 
-      const generateCSV = () => {
-          const headers = [
-            "Application Date",
-            "Company",
-            "Position",
-            "Status",
-            "Reference Link",
-            "Next Action",
-            "Contact",
-            "CV Path",
-            "Notes",
-            "CV changes summary",
-            "Cover letter",
-            "Interview Date",
-            "Company description",
-            "Salary"
-          ];
-          
-          const rowData = [
-            applicationDate,
-            data.companyName,
-            data.position,
-            "Applied",
-            referenceLink,
-            data.nextAction,
-            data.contact,
-            data.suggestedCvFilename,
-            data.notes,
-            formattedSummary,
-            coverLetter ? "Cover-Letter.pdf" : "",
-            "", // Interview Date
-            data.companyDescription,
-            data.salary
-          ].map(escapeCsvField);
-          
-          return [headers.join(','), rowData.join(',')].join('\n');
-      };
-
-      const generateJSON = () => {
-          const jsonExportData = {
-              ...data,
-              applicationDate,
-              referenceLink: referenceLink,
-              cvChangesSummary: formattedSummary,
-              coverLetterFilename: coverLetter ? "Cover-Letter.pdf" : ""
+      if (format === 'db') {
+          await saveJobApplicationToSupabase({
+              company_name: data.companyName,
+              position: data.position,
+              job_description: jobPosting,
+              cv_text: tailoredCv || cv,
+              cover_letter: coverLetter,
+              status: 'Applied',
+              application_date: applicationDate,
+              reference_link: referenceLink,
+              salary: data.salary,
+              notes: data.notes,
+              contact: data.contact,
+              company_description: data.companyDescription
+          });
+          alert("Job Application saved to Supabase!");
+      } 
+      else {
+          const generateCSV = () => {
+              const headers = [
+                "Application Date",
+                "Company",
+                "Position",
+                "Status",
+                "Reference Link",
+                "Next Action",
+                "Contact",
+                "CV Path",
+                "Notes",
+                "CV changes summary",
+                "Cover letter",
+                "Interview Date",
+                "Company description",
+                "Salary"
+              ];
+              
+              const rowData = [
+                applicationDate,
+                data.companyName,
+                data.position,
+                "Applied",
+                referenceLink,
+                data.nextAction,
+                data.contact,
+                data.suggestedCvFilename,
+                data.notes,
+                formattedSummary,
+                coverLetter ? "Cover-Letter.pdf" : "",
+                "", // Interview Date
+                data.companyDescription,
+                data.salary
+              ].map(escapeCsvField);
+              
+              return [headers.join(','), rowData.join(',')].join('\n');
           };
-          return JSON.stringify(jsonExportData, null, 2);
-      };
 
-      const baseFilename = `${data.companyName}-${data.position}`.replace(/[^a-zA-Z0-9-.]/g, '_');
+          const generateJSON = () => {
+              const jsonExportData = {
+                  ...data,
+                  applicationDate,
+                  referenceLink: referenceLink,
+                  cvChangesSummary: formattedSummary,
+                  coverLetterFilename: coverLetter ? "Cover-Letter.pdf" : ""
+              };
+              return JSON.stringify(jsonExportData, null, 2);
+          };
 
-      if (format === 'zip') {
-          if (!window.JSZip) {
-              throw new Error("JSZip library is not loaded. Please refresh the page.");
+          const baseFilename = `${data.companyName}-${data.position}`.replace(/[^a-zA-Z0-9-.]/g, '_');
+
+          if (format === 'zip') {
+              if (!window.JSZip) {
+                  throw new Error("JSZip library is not loaded. Please refresh the page.");
+              }
+              const zip = new window.JSZip();
+              zip.file(`${baseFilename}.csv`, generateCSV());
+              zip.file(`${baseFilename}.json`, generateJSON());
+
+              const content = await zip.generateAsync({ type: "blob" });
+              
+              const link = document.createElement("a");
+              const url = URL.createObjectURL(content);
+              link.setAttribute("href", url);
+              link.setAttribute("download", `${baseFilename}.zip`);
+              link.style.visibility = 'hidden';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+
+          } else if (format === 'csv') {
+              const csvContent = generateCSV();
+              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+              const link = document.createElement("a");
+              const url = URL.createObjectURL(blob);
+              link.setAttribute("href", url);
+              link.setAttribute("download", `${baseFilename}.csv`);
+              link.style.visibility = 'hidden';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+
+          } else if (format === 'json') {
+              const jsonContent = generateJSON();
+              const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+              const link = document.createElement("a");
+              const url = URL.createObjectURL(blob);
+              link.setAttribute("href", url);
+              link.setAttribute("download", `${baseFilename}.json`);
+              link.style.visibility = 'hidden';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
           }
-          const zip = new window.JSZip();
-          zip.file(`${baseFilename}.csv`, generateCSV());
-          zip.file(`${baseFilename}.json`, generateJSON());
-
-          const content = await zip.generateAsync({ type: "blob" });
-          
-          const link = document.createElement("a");
-          const url = URL.createObjectURL(content);
-          link.setAttribute("href", url);
-          link.setAttribute("download", `${baseFilename}.zip`);
-          link.style.visibility = 'hidden';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-
-      } else if (format === 'csv') {
-          const csvContent = generateCSV();
-          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-          const link = document.createElement("a");
-          const url = URL.createObjectURL(blob);
-          link.setAttribute("href", url);
-          link.setAttribute("download", `${baseFilename}.csv`);
-          link.style.visibility = 'hidden';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-
-      } else if (format === 'json') {
-          const jsonContent = generateJSON();
-          const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
-          const link = document.createElement("a");
-          const url = URL.createObjectURL(blob);
-          link.setAttribute("href", url);
-          link.setAttribute("download", `${baseFilename}.json`);
-          link.style.visibility = 'hidden';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
       }
 
     } catch (err: any) {
@@ -517,7 +542,7 @@ const CVTailor: React.FC = () => {
     } finally {
       setIsExportingData(false);
     }
-  }, [cv, jobPosting, jobPostingUrl, changesSummary, coverLetter]);
+  }, [cv, jobPosting, jobPostingUrl, changesSummary, coverLetter, tailoredCv]);
 
   const handleFileLoad = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -763,6 +788,18 @@ const CVTailor: React.FC = () => {
                 {isExportDataOpen && !isExportingData && (
                     <div className="origin-top-right absolute right-0 mt-2 w-full rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-10">
                         <div className="py-1">
+                            {hasSupabase && (
+                                <>
+                                    <button
+                                        onClick={() => handleExportData('db')}
+                                        className="block w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-600 transition-colors flex items-center gap-2"
+                                    >
+                                        <DatabaseIcon className="w-4 h-4 text-indigo-400" />
+                                        Save to <span className="font-bold text-indigo-400">Database</span>
+                                    </button>
+                                    <div className="border-t border-gray-600 my-1"></div>
+                                </>
+                            )}
                             <button
                                 onClick={() => handleExportData('csv')}
                                 className="block w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-600 transition-colors flex items-center gap-2"

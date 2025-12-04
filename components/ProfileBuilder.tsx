@@ -1,8 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { generateMasterProfile } from '../services/geminiService';
-import { UploadIcon, FileStackIcon, TrashIcon, DownloadIcon } from './icons';
+import { UploadIcon, FileStackIcon, TrashIcon, DownloadIcon, CloudIcon } from './icons';
 import { extractTextFromFile } from '../utils/fileHelpers';
+import { saveMasterProfileToSupabase, getLatestMasterProfileFromSupabase, getSupabaseClient } from '../services/supabaseService';
 
 interface UploadedFile {
   name: string;
@@ -15,6 +16,8 @@ const ProfileBuilder: React.FC = () => {
   const [masterProfile, setMasterProfile] = useState<string>(() => localStorage.getItem('masterProfile') || '');
   const [error, setError] = useState<string | null>(null);
   const [isSaveOpen, setIsSaveOpen] = useState<boolean>(false);
+  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+  const [hasSupabase, setHasSupabase] = useState<boolean>(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveDropdownRef = useRef<HTMLDivElement>(null);
@@ -24,6 +27,11 @@ const ProfileBuilder: React.FC = () => {
       localStorage.setItem('masterProfile', masterProfile);
     }
   }, [masterProfile]);
+
+  useEffect(() => {
+      const client = getSupabaseClient();
+      setHasSupabase(!!client);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -113,6 +121,36 @@ const ProfileBuilder: React.FC = () => {
     }
   };
 
+  const handleSaveToCloud = async () => {
+      if (!masterProfile) return;
+      setIsCloudSyncing(true);
+      try {
+          await saveMasterProfileToSupabase(masterProfile);
+          alert("Profile saved to Supabase successfully.");
+      } catch (err: any) {
+          alert(`Failed to save to cloud: ${err.message}`);
+      } finally {
+          setIsCloudSyncing(false);
+      }
+  };
+
+  const handleLoadFromCloud = async () => {
+      setIsCloudSyncing(true);
+      try {
+          const content = await getLatestMasterProfileFromSupabase();
+          if (content) {
+              setMasterProfile(content);
+              alert("Latest profile loaded from Supabase.");
+          } else {
+              alert("No profile found in database.");
+          }
+      } catch (err: any) {
+          alert(`Failed to load from cloud: ${err.message}`);
+      } finally {
+          setIsCloudSyncing(false);
+      }
+  };
+
   return (
     <div className="space-y-8">
       <div className="bg-gray-800/50 p-6 rounded-lg border border-gray-700">
@@ -175,9 +213,33 @@ const ProfileBuilder: React.FC = () => {
 
       {masterProfile && (
         <div className="space-y-4 animate-fade-in">
-           <div className="flex justify-between items-center">
+           <div className="flex justify-between items-center flex-wrap gap-2">
              <h3 className="text-xl font-semibold text-gray-200">Your Master Profile</h3>
              <div className="flex items-center gap-2">
+                {hasSupabase && (
+                    <>
+                        <button 
+                            onClick={handleLoadFromCloud} 
+                            disabled={isCloudSyncing}
+                            className="flex items-center gap-2 px-3 py-2 bg-indigo-900/50 text-indigo-200 hover:bg-indigo-900 border border-indigo-700/50 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                            title="Load latest from Supabase"
+                        >
+                            <CloudIcon className="w-4 h-4" />
+                            Load Cloud
+                        </button>
+                        <button 
+                            onClick={handleSaveToCloud} 
+                            disabled={isCloudSyncing}
+                            className="flex items-center gap-2 px-3 py-2 bg-indigo-900/50 text-indigo-200 hover:bg-indigo-900 border border-indigo-700/50 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                            title="Save current profile to Supabase"
+                        >
+                            <CloudIcon className="w-4 h-4" />
+                            Save Cloud
+                        </button>
+                        <div className="w-px h-6 bg-gray-700 mx-1"></div>
+                    </>
+                )}
+                
                 <button 
                     onClick={handleClearProfile} 
                     className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-sm font-medium transition-colors"
@@ -216,7 +278,7 @@ const ProfileBuilder: React.FC = () => {
              placeholder="Your generated master profile will appear here..."
            />
            <p className="text-center text-green-400 text-sm">
-             <span className="font-bold">✓ Saved automatically.</span> Go to the "CV Tailor" tab to use this profile.
+             <span className="font-bold">✓ Saved automatically locally.</span> {hasSupabase ? 'Use Cloud buttons to sync.' : 'Configure Supabase in Settings to sync to cloud.'}
            </p>
         </div>
       )}
