@@ -200,24 +200,30 @@ const CVTailor: React.FC = () => {
     localStorage.setItem('userCv', cv);
   }, [cv]);
 
-  // Check if Master Profile exists in storage
+  // Check if Master Profile exists in storage and if Supabase is connected
   useEffect(() => {
+      // Immediate check on mount to prevent UI flicker
+      const client = getSupabaseClient();
+      setHasSupabase(!!client);
+
       const profile = localStorage.getItem('masterProfile');
       setHasMasterProfile(!!profile && profile.length > 0);
       
-      // Interval to check if profile was added via another tab (Profile Builder)
+      // Interval to check for external updates
       const interval = setInterval(() => {
         const p = localStorage.getItem('masterProfile');
-        if ((!!p && p.length > 0) !== hasMasterProfile) {
-           setHasMasterProfile(!!p && p.length > 0);
-        }
+        const hasP = !!p && p.length > 0;
+        // Functional update to avoid dependencies
+        setHasMasterProfile(prev => {
+           if (prev !== hasP) return hasP;
+           return prev;
+        });
         
-        // Also check for Supabase config
-        const client = getSupabaseClient();
-        setHasSupabase(!!client);
+        const currentClient = getSupabaseClient();
+        setHasSupabase(!!currentClient);
       }, 1000);
       return () => clearInterval(interval);
-  }, [hasMasterProfile]);
+  }, []);
 
   useEffect(() => {
     const checkLibraries = () => {
@@ -788,18 +794,20 @@ const CVTailor: React.FC = () => {
                 {isExportDataOpen && !isExportingData && (
                     <div className="origin-top-right absolute right-0 mt-2 w-full rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-10">
                         <div className="py-1">
-                            {hasSupabase && (
-                                <>
-                                    <button
-                                        onClick={() => handleExportData('db')}
-                                        className="block w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-600 transition-colors flex items-center gap-2"
-                                    >
-                                        <DatabaseIcon className="w-4 h-4 text-indigo-400" />
-                                        Save to <span className="font-bold text-indigo-400">Database</span>
-                                    </button>
-                                    <div className="border-t border-gray-600 my-1"></div>
-                                </>
-                            )}
+                            <button
+                                onClick={() => {
+                                    if (!hasSupabase) {
+                                        alert("Please configure Supabase in the Settings menu (top right) to enable this feature.");
+                                        return;
+                                    }
+                                    handleExportData('db');
+                                }}
+                                className={`block w-full text-left px-4 py-3 text-sm transition-colors flex items-center gap-2 ${hasSupabase ? 'text-gray-200 hover:bg-gray-600' : 'text-gray-500 hover:bg-gray-800'}`}
+                            >
+                                <DatabaseIcon className={`w-4 h-4 ${hasSupabase ? 'text-indigo-400' : 'text-gray-600'}`} />
+                                <span>Save to Database {hasSupabase ? '' : '(Not Connected)'}</span>
+                            </button>
+                            <div className="border-t border-gray-600 my-1"></div>
                             <button
                                 onClick={() => handleExportData('csv')}
                                 className="block w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-600 transition-colors flex items-center gap-2"

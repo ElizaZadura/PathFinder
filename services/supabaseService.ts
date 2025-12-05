@@ -1,10 +1,12 @@
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Get keys from localStorage to allow dynamic configuration
 const getSupabaseConfig = () => {
     return {
-        url: localStorage.getItem('supabaseUrl') || '',
-        key: localStorage.getItem('supabaseKey') || ''
+        // support both new snake_case keys and legacy camelCase keys
+        url: localStorage.getItem('supabase_url') || localStorage.getItem('supabaseUrl') || '',
+        key: localStorage.getItem('supabase_key') || localStorage.getItem('supabaseKey') || ''
     };
 };
 

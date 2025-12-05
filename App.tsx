@@ -16,21 +16,27 @@ const App: React.FC = () => {
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
 
   useEffect(() => {
-    // Load saved settings
-    const savedUrl = localStorage.getItem('supabaseUrl') || '';
-    const savedKey = localStorage.getItem('supabaseKey') || '';
-    setSupabaseUrl(savedUrl);
-    setSupabaseKey(savedKey);
+    // Load saved settings from localStorage to persist across hot reloads
+    // prioritizing snake_case as requested, falling back to camelCase legacy
+    const storedUrl = localStorage.getItem('supabase_url') || localStorage.getItem('supabaseUrl') || '';
+    const storedKey = localStorage.getItem('supabase_key') || localStorage.getItem('supabaseKey') || '';
     
-    if (savedUrl && savedKey) {
+    if (storedUrl && storedKey) {
+        setSupabaseUrl(storedUrl);
+        setSupabaseKey(storedKey);
+        
+        // Attempt to initialize immediately if keys are present
         const connected = initSupabase();
         setIsSupabaseConnected(connected);
     }
   }, []);
 
   const handleSaveSettings = () => {
-    localStorage.setItem('supabaseUrl', supabaseUrl);
-    localStorage.setItem('supabaseKey', supabaseKey);
+    // Save with new standard keys
+    localStorage.setItem('supabase_url', supabaseUrl);
+    localStorage.setItem('supabase_key', supabaseKey);
+    
+    // Initialize service
     const connected = initSupabase();
     setIsSupabaseConnected(connected);
     setIsSettingsOpen(false);
