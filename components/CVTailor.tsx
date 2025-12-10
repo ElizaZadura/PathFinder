@@ -4,6 +4,7 @@ import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, che
 import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon, ChevronDownIcon, SparklesIcon, PenIcon, DatabaseIcon } from './icons';
 import { extractTextFromFile } from '../utils/fileHelpers';
 import { saveJobApplicationToSupabase, getSupabaseClient } from '../services/supabaseService';
+import { Toast } from './Toast';
 import type { ATSReport, JobData } from '../types';
 
 // Extend the Window interface to include the global libraries from scripts in index.html
@@ -177,6 +178,7 @@ const CVTailor: React.FC = () => {
   const [isExportDataOpen, setIsExportDataOpen] = useState<boolean>(false);
   const [hasMasterProfile, setHasMasterProfile] = useState<boolean>(false);
   const [hasSupabase, setHasSupabase] = useState<boolean>(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
   // Job Insights State
   const [isInsightsOpen, setIsInsightsOpen] = useState<boolean>(false);
@@ -440,7 +442,7 @@ const CVTailor: React.FC = () => {
               contact: data.contact,
               company_description: data.companyDescription
           });
-          alert("Job Application saved to Supabase!");
+          setToast({ message: "Job Application saved to Supabase!", type: 'success' });
       } 
       else {
           const generateCSV = () => {
@@ -544,7 +546,11 @@ const CVTailor: React.FC = () => {
 
     } catch (err: any) {
       console.error(err);
-      setError(`An error occurred while exporting job data: ${err.message || 'Unknown error'}`);
+      if (format === 'db') {
+          setToast({ message: `Failed to save to database: ${err.message}`, type: 'error' });
+      } else {
+          setError(`An error occurred while exporting job data: ${err.message || 'Unknown error'}`);
+      }
     } finally {
       setIsExportingData(false);
     }
@@ -615,7 +621,7 @@ const CVTailor: React.FC = () => {
 
   const copyToClipboard = (text: string, type: string) => { 
     navigator.clipboard.writeText(text); 
-    alert(`${type} copied to clipboard!`); 
+    setToast({ message: `${type} copied to clipboard!`, type: 'success' });
   };
   const handleLoadClick = () => { fileInputRef.current?.click(); };
   
@@ -700,7 +706,9 @@ const CVTailor: React.FC = () => {
   const commonTextAreaClass = "w-full p-4 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 resize-y";
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2 flex flex-col">
             <div className="flex justify-between items-center mb-2">
@@ -797,7 +805,7 @@ const CVTailor: React.FC = () => {
                             <button
                                 onClick={() => {
                                     if (!hasSupabase) {
-                                        alert("Please configure Supabase in the Settings menu (top right) to enable this feature.");
+                                        setToast({ message: "Please configure Supabase in the Settings menu (top right) to enable this feature.", type: "error" });
                                         return;
                                     }
                                     handleExportData('db');

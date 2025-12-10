@@ -4,6 +4,7 @@ import { generateMasterProfile } from '../services/geminiService';
 import { UploadIcon, FileStackIcon, TrashIcon, DownloadIcon, CloudIcon } from './icons';
 import { extractTextFromFile } from '../utils/fileHelpers';
 import { saveMasterProfileToSupabase, getLatestMasterProfileFromSupabase, getSupabaseClient } from '../services/supabaseService';
+import { Toast } from './Toast';
 
 interface UploadedFile {
   name: string;
@@ -18,6 +19,7 @@ const ProfileBuilder: React.FC = () => {
   const [isSaveOpen, setIsSaveOpen] = useState<boolean>(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
   const [hasSupabase, setHasSupabase] = useState<boolean>(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveDropdownRef = useRef<HTMLDivElement>(null);
@@ -126,9 +128,9 @@ const ProfileBuilder: React.FC = () => {
       setIsCloudSyncing(true);
       try {
           await saveMasterProfileToSupabase(masterProfile);
-          alert("Profile saved to Supabase successfully.");
+          setToast({ message: "Profile saved to Supabase successfully.", type: 'success' });
       } catch (err: any) {
-          alert(`Failed to save to cloud: ${err.message}`);
+          setToast({ message: `Failed to save to cloud: ${err.message}`, type: 'error' });
       } finally {
           setIsCloudSyncing(false);
       }
@@ -140,19 +142,21 @@ const ProfileBuilder: React.FC = () => {
           const content = await getLatestMasterProfileFromSupabase();
           if (content) {
               setMasterProfile(content);
-              alert("Latest profile loaded from Supabase.");
+              setToast({ message: "Latest profile loaded from Supabase.", type: 'success' });
           } else {
-              alert("No profile found in database.");
+              setToast({ message: "No profile found in database.", type: 'error' });
           }
       } catch (err: any) {
-          alert(`Failed to load from cloud: ${err.message}`);
+          setToast({ message: `Failed to load from cloud: ${err.message}`, type: 'error' });
       } finally {
           setIsCloudSyncing(false);
       }
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
       <div className="bg-gray-800/50 p-6 rounded-lg border border-gray-700">
         <h2 className="text-2xl font-bold mb-4 text-indigo-400 flex items-center gap-2">
           <FileStackIcon className="w-8 h-8" />
