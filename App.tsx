@@ -4,7 +4,7 @@ import CVTailor from './components/CVTailor';
 import LiveConversation from './components/LiveConversation';
 import ProfileBuilder from './components/ProfileBuilder';
 import { BotIcon, EditIcon, FileStackIcon, SettingsIcon, DatabaseIcon } from './components/icons';
-import { initSupabase } from './services/supabaseService';
+import { initSupabase, HARDCODED_SUPABASE_URL } from './services/supabaseService';
 
 type Tab = 'cv' | 'live' | 'profile';
 
@@ -12,10 +12,9 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('cv');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
-  // Lazy initialization: Read from localStorage immediately. 
-  // This prevents the state from being empty on the first render cycle.
+  // Lazy initialization: Prefer hardcoded URL, otherwise read from localStorage.
   const [supabaseUrl, setSupabaseUrl] = useState(() => 
-    localStorage.getItem('supabase_url') || localStorage.getItem('supabaseUrl') || ''
+    HARDCODED_SUPABASE_URL || localStorage.getItem('supabase_url') || localStorage.getItem('supabaseUrl') || ''
   );
   const [supabaseKey, setSupabaseKey] = useState(() => 
     localStorage.getItem('supabase_key') || localStorage.getItem('supabaseKey') || ''
@@ -38,7 +37,7 @@ const App: React.FC = () => {
         }
     }
 
-    // Save with new standard keys
+    // Save with new standard keys (saving hardcoded URL to localstorage is redundant but harmless)
     localStorage.setItem('supabase_url', supabaseUrl);
     localStorage.setItem('supabase_key', supabaseKey);
     
@@ -108,9 +107,11 @@ const App: React.FC = () => {
                                 type="text" 
                                 value={supabaseUrl} 
                                 onChange={(e) => setSupabaseUrl(e.target.value)}
+                                disabled={!!HARDCODED_SUPABASE_URL}
                                 placeholder="https://xyz.supabase.co"
-                                className="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
+                                className={`w-full bg-gray-900 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 ${!!HARDCODED_SUPABASE_URL ? 'text-gray-500 cursor-not-allowed' : ''}`}
                             />
+                            {!!HARDCODED_SUPABASE_URL && <p className="text-xs text-green-500 mt-1">URL is hardcoded in code.</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-400 mb-1">Anon API Key</label>

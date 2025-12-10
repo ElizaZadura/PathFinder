@@ -1,11 +1,19 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+// --- CONFIGURATION ---
+
+// OPTIONAL: You can hardcode your Supabase URL here to avoid entering it in the UI.
+// Example: "https://your-project-id.supabase.co"
+export const HARDCODED_SUPABASE_URL = ""; 
+
+// ---------------------
+
 // Get keys from localStorage to allow dynamic configuration
 const getSupabaseConfig = () => {
     return {
-        // support both new snake_case keys and legacy camelCase keys
-        url: localStorage.getItem('supabase_url') || localStorage.getItem('supabaseUrl') || '',
+        // Prioritize the hardcoded URL, then fall back to localStorage (snake_case preferred, camelCase legacy)
+        url: HARDCODED_SUPABASE_URL || localStorage.getItem('supabase_url') || localStorage.getItem('supabaseUrl') || '',
         key: localStorage.getItem('supabase_key') || localStorage.getItem('supabaseKey') || ''
     };
 };
