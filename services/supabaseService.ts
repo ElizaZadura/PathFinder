@@ -5,7 +5,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // OPTIONAL: You can hardcode your Supabase URL here to avoid entering it in the UI.
 // Example: "https://your-project-id.supabase.co"
-export const HARDCODED_SUPABASE_URL = ""; 
+export const HARDCODED_SUPABASE_URL = "https://cioqhusicycehdabgmoj.supabase.co"; 
 
 // ---------------------
 
