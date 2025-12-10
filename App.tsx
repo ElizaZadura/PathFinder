@@ -11,27 +11,33 @@ type Tab = 'cv' | 'live' | 'profile';
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('cv');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [supabaseUrl, setSupabaseUrl] = useState('');
-  const [supabaseKey, setSupabaseKey] = useState('');
+  
+  // Lazy initialization: Read from localStorage immediately. 
+  // This prevents the state from being empty on the first render cycle.
+  const [supabaseUrl, setSupabaseUrl] = useState(() => 
+    localStorage.getItem('supabase_url') || localStorage.getItem('supabaseUrl') || ''
+  );
+  const [supabaseKey, setSupabaseKey] = useState(() => 
+    localStorage.getItem('supabase_key') || localStorage.getItem('supabaseKey') || ''
+  );
+  
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
 
   useEffect(() => {
-    // Load saved settings from localStorage to persist across hot reloads
-    // prioritizing snake_case as requested, falling back to camelCase legacy
-    const storedUrl = localStorage.getItem('supabase_url') || localStorage.getItem('supabaseUrl') || '';
-    const storedKey = localStorage.getItem('supabase_key') || localStorage.getItem('supabaseKey') || '';
-    
-    if (storedUrl && storedKey) {
-        setSupabaseUrl(storedUrl);
-        setSupabaseKey(storedKey);
-        
-        // Attempt to initialize immediately if keys are present
+    // Attempt to initialize immediately on mount if keys are present in state
+    if (supabaseUrl && supabaseKey) {
         const connected = initSupabase();
         setIsSupabaseConnected(connected);
     }
-  }, []);
+  }, []); // Only run once on mount
 
   const handleSaveSettings = () => {
+    if (!supabaseUrl || !supabaseKey) {
+        if (!window.confirm("You are about to save empty credentials. This will disconnect Supabase. Continue?")) {
+            return;
+        }
+    }
+
     // Save with new standard keys
     localStorage.setItem('supabase_url', supabaseUrl);
     localStorage.setItem('supabase_key', supabaseKey);
