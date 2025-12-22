@@ -84,7 +84,7 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
             contents: extractPrompt,
         });
         
-        const extractedText = extractResponse.text.trim();
+        const extractedText = (extractResponse.text || "").trim();
         if (extractedText && extractedText.length > 50) {
             return cleanText(extractedText);
         }
@@ -128,7 +128,7 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
         },
     });
     
-    const resultText = geminiResponse.text.trim();
+    const resultText = (geminiResponse.text || "").trim();
     
     if (resultText.startsWith("ERROR:") || !resultText) {
         const modelError = resultText.replace("ERROR: ", "");
@@ -232,7 +232,7 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
         }
     });
     
-    const result = JSON.parse(response.text);
+    const result = JSON.parse(response.text || "{}");
     return result;
   } catch (error) {
     console.error("Error tailoring CV:", error);
@@ -284,8 +284,8 @@ export async function generateCoverLetter(cv: string, jobPosting: string, langua
         }
     });
     
-    const result = JSON.parse(response.text);
-    return result.coverLetter;
+    const result = JSON.parse(response.text || "{}");
+    return result.coverLetter || "";
   } catch (error) {
     console.error("Error generating cover letter:", error);
     throw new Error("Failed to generate cover letter from Gemini API.");
@@ -333,8 +333,8 @@ export async function refineCoverLetter(cv: string, jobPosting: string, currentC
             }
         });
         
-        const result = JSON.parse(response.text);
-        return result.coverLetter;
+        const result = JSON.parse(response.text || "{}");
+        return result.coverLetter || "";
     } catch (error) {
         console.error("Error refining cover letter:", error);
         throw new Error("Failed to refine cover letter using the Gemini API.");
@@ -386,7 +386,7 @@ export async function refineCV(cv: string, jobPosting: string, currentTailoredCv
             }
         });
         
-        const result = JSON.parse(response.text);
+        const result = JSON.parse(response.text || "{}");
         return result;
     } catch (error) {
         console.error("Error refining CV:", error);
@@ -417,7 +417,7 @@ export async function extractKeywords(jobPosting: string): Promise<string[]> {
                 }
             }
         });
-        const jsonResponse = JSON.parse(response.text);
+        const jsonResponse = JSON.parse(response.text || "{}");
         return jsonResponse.keywords || [];
     } catch (error) {
         console.error("Error extracting keywords:", error);
@@ -538,7 +538,7 @@ export async function checkATSCompliance(cv: string, jobPosting: string): Promis
         }
     });
     
-    const result = JSON.parse(response.text);
+    const result = JSON.parse(response.text || "{}");
     return result as ATSReport;
   } catch (error) {
     console.error("Error checking ATS compliance:", error);
@@ -557,7 +557,7 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
       - For 'salary', extract any mention of salary or compensation. If not found, return "Empty".
       - For 'contact', find a hiring manager's name or a contact email. If none, return "Empty".
       - For 'suggestedCvFilename', create a standard filename like 'FirstName-LastName-Role.pdf' based on the candidate's name from the CV.
-      - For 'nextAction', suggest a simple follow-up action like "Follow up in one week".
+      - For 'nextAction', suggest a simple follow-up action like "Follow up".
       - For 'notes', write a very brief, one-sentence summary of the job's core responsibility.
       - For 'referenceUrl', extract the URL of the job posting if explicitly mentioned in the text. Return "Empty" if not found.
 
@@ -582,7 +582,7 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
             salary: { type: Type.STRING, description: 'The salary or salary range mentioned. Return "Empty" if not found.' },
             contact: { type: Type.STRING, description: 'The contact person or email mentioned. Return "Empty" if not found.' },
             suggestedCvFilename: { type: Type.STRING, description: 'A suggested filename for the CV, like "FirstName-LastName-Role-CV.pdf". Infer from the CV text.' },
-            nextAction: { type: Type.STRING, description: 'A suggested next action, like "Follow up in one week".' },
+            nextAction: { type: Type.STRING, description: 'A suggested next action, like "Follow up".' },
             notes: { type: Type.STRING, description: 'A brief, one-sentence summary of the role.' },
             referenceUrl: { type: Type.STRING, description: 'The URL of the job posting if found in the text. Return "Empty" if not found.' },
           },
@@ -591,7 +591,7 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
       },
     });
 
-    const result = JSON.parse(response.text);
+    const result = JSON.parse(response.text || "{}");
     return result as JobData;
   } catch (error) {
     console.error("Error extracting job data for CSV:", error);
