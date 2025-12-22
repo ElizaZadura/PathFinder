@@ -428,6 +428,9 @@ const CVTailor: React.FC = () => {
       const referenceLink = jobPostingUrl || (data.referenceUrl && data.referenceUrl !== 'Empty' ? data.referenceUrl : '');
 
       if (format === 'db') {
+          // Retrieve the currently active Master Profile ID (if set)
+          const masterProfileId = localStorage.getItem('masterProfileId');
+          
           await saveJobApplicationToSupabase({
               company_name: data.companyName,
               position: data.position,
@@ -440,7 +443,8 @@ const CVTailor: React.FC = () => {
               salary: data.salary,
               notes: data.notes,
               contact: data.contact,
-              company_description: data.companyDescription
+              company_description: data.companyDescription,
+              master_profile_id: masterProfileId ? parseInt(masterProfileId) : null
           });
           setToast({ message: "Job Application saved to Supabase!", type: 'success' });
       } 

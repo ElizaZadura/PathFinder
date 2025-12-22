@@ -83,6 +83,8 @@ const ProfileBuilder: React.FC = () => {
       const docsContent = files.map(f => f.content);
       const profile = await generateMasterProfile(docsContent);
       setMasterProfile(profile);
+      // New profile generated locally, so the stored ID is no longer valid until saved
+      localStorage.removeItem('masterProfileId');
     } catch (err) {
       setError('Failed to generate Master Profile. Please try again.');
     } finally {
@@ -120,6 +122,7 @@ const ProfileBuilder: React.FC = () => {
     if (window.confirm("Are you sure you want to clear the current Master Profile? This action cannot be undone.")) {
       setMasterProfile('');
       localStorage.removeItem('masterProfile');
+      localStorage.removeItem('masterProfileId');
     }
   };
 
@@ -127,7 +130,10 @@ const ProfileBuilder: React.FC = () => {
       if (!masterProfile) return;
       setIsCloudSyncing(true);
       try {
-          await saveMasterProfileToSupabase(masterProfile);
+          const data = await saveMasterProfileToSupabase(masterProfile);
+          if (data && data.id) {
+            localStorage.setItem('masterProfileId', data.id.toString());
+          }
           setToast({ message: "Profile saved to Supabase successfully.", type: 'success' });
       } catch (err: any) {
           setToast({ message: `Failed to save to cloud: ${err.message}`, type: 'error' });
@@ -139,9 +145,12 @@ const ProfileBuilder: React.FC = () => {
   const handleLoadFromCloud = async () => {
       setIsCloudSyncing(true);
       try {
-          const content = await getLatestMasterProfileFromSupabase();
-          if (content) {
-              setMasterProfile(content);
+          const data = await getLatestMasterProfileFromSupabase();
+          if (data && data.content) {
+              setMasterProfile(data.content);
+              if (data.id) {
+                localStorage.setItem('masterProfileId', data.id.toString());
+              }
               setToast({ message: "Latest profile loaded from Supabase.", type: 'success' });
           } else {
               setToast({ message: "No profile found in database.", type: 'error' });

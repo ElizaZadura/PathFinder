@@ -42,15 +42,15 @@ export const saveMasterProfileToSupabase = async (content: string) => {
     const client = getSupabaseClient();
     if (!client) throw new Error("Supabase is not configured. Please check your settings.");
 
-    // Simple strategy: Always create a new entry for history, or you could update a single row
-    // Here we insert a new record to keep a version history
+    // Insert new record with generated created_at
     const { data, error } = await client
         .from('master_profiles')
         .insert([{ content }])
-        .select();
+        .select('id, content, created_at')
+        .single();
 
     if (error) throw error;
-    return data;
+    return data; // Returns { id, content, created_at }
 };
 
 export const getLatestMasterProfileFromSupabase = async () => {
@@ -59,13 +59,13 @@ export const getLatestMasterProfileFromSupabase = async () => {
 
     const { data, error } = await client
         .from('master_profiles')
-        .select('content')
+        .select('id, content, created_at')
         .order('id', { ascending: false }) // Use ID for robust sorting (newest first)
         .limit(1)
         .single();
 
     if (error) throw error;
-    return data?.content;
+    return data; // Returns { id, content, created_at } or null
 };
 
 // --- Job Application Operations ---
