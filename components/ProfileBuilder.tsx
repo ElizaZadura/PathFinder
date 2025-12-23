@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { generateMasterProfile } from '../services/geminiService';
+import { generateMasterProfile, extendMasterProfile } from '../services/geminiService';
 import { UploadIcon, FileStackIcon, TrashIcon, DownloadIcon, CloudIcon } from './icons';
 import { extractTextFromFile } from '../utils/fileHelpers';
 import { saveMasterProfileToSupabase, getLatestMasterProfileFromSupabase, getSupabaseClient } from '../services/supabaseService';
@@ -81,12 +80,23 @@ const ProfileBuilder: React.FC = () => {
     setError(null);
     try {
       const docsContent = files.map(f => f.content);
-      const profile = await generateMasterProfile(docsContent);
+      
+      let profile = '';
+      if (masterProfile && masterProfile.trim().length > 0) {
+          profile = await extendMasterProfile(masterProfile, docsContent);
+          setToast({ message: "Profile updated with new documents!", type: 'success' });
+      } else {
+          profile = await generateMasterProfile(docsContent);
+          setToast({ message: "Master Profile generated!", type: 'success' });
+      }
+      
       setMasterProfile(profile);
-      // New profile generated locally, so the stored ID is no longer valid until saved
+      // New profile generated/updated locally, so the stored ID is no longer valid until saved
       localStorage.removeItem('masterProfileId');
+      setFiles([]); // Clear files after successful processing
     } catch (err) {
-      setError('Failed to generate Master Profile. Please try again.');
+      setError('Failed to process documents. Please try again.');
+      setToast({ message: "Failed to process documents.", type: 'error' });
     } finally {
       setIsProcessing(false);
     }
@@ -218,7 +228,10 @@ const ProfileBuilder: React.FC = () => {
                 disabled={files.length === 0 || isProcessing}
                 className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-lg hover:bg-indigo-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all"
              >
-               {isProcessing ? 'Analyzing Documents...' : 'Generate Master Profile'}
+               {isProcessing 
+                  ? 'Processing...' 
+                  : (masterProfile ? 'Update Profile with New Files' : 'Generate Master Profile')
+               }
              </button>
           </div>
         </div>

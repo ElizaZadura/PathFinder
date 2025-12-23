@@ -146,6 +146,42 @@ export async function generateMasterProfile(docs: string[]): Promise<string> {
   }
 }
 
+export async function extendMasterProfile(currentProfile: string, newDocs: string[]): Promise<string> {
+  try {
+    const combinedDocs = newDocs.map((doc, index) => `--- NEW DOCUMENT ${index + 1} ---\n${doc}`).join('\n\n');
+
+    const prompt = `
+      You are an expert Career Architect.
+      
+      **Goal:** Update an existing "Master Career Profile" by integrating information from new documents.
+      
+      **Existing Master Profile:**
+      ${currentProfile}
+
+      **New Documents to Integrate:**
+      ${combinedDocs}
+
+      **Instructions:**
+      1. Analyze the New Documents.
+      2. Integrate any *new* experiences, skills, projects, education, or certifications into the structure of the Existing Master Profile.
+      3. **De-duplicate:** If an experience in the New Documents already exists in the Master Profile, check if the new one provides more detail. If so, enhance the existing entry. Do not create duplicate entries for the same role/project.
+      4. **Structure:** Maintain the existing Markdown structure (Summary, Experience, Skills, etc.).
+      5. **Chronology:** Ensure the "Professional Experience" section remains sorted chronologically (newest first).
+      6. Return the **complete, updated** Master Profile in Markdown.
+    `;
+    
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: prompt,
+    });
+
+    return cleanText(response.text);
+  } catch (error) {
+    console.error("Error extending master profile:", error);
+    throw new Error("Failed to update Master Profile from Gemini API.");
+  }
+}
+
 export async function getTailoredCV(cv: string, jobPosting: string, language: string): Promise<{ tailoredCv: string; changesSummary: string; suggestedFilename: string; }> {
   try {
     const prompt = `Tailor this CV to the job description. Language: ${language}. Maintain exact dates. CV: ${cv} Job: ${jobPosting}`;
