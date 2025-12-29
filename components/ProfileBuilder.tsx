@@ -222,7 +222,7 @@ const ProfileBuilder: React.FC = () => {
 
           {error && <div className="text-red-400 text-sm bg-red-900/20 p-3 rounded">{error}</div>}
           
-          <div className="flex justify-center pt-4">
+          <div className="flex justify-center pt-4 gap-4 flex-wrap">
              <button 
                 onClick={handleGenerateProfile} 
                 disabled={files.length === 0 || isProcessing}
@@ -233,6 +233,17 @@ const ProfileBuilder: React.FC = () => {
                   : (masterProfile ? 'Update Profile with New Files' : 'Generate Master Profile')
                }
              </button>
+
+             {!masterProfile && hasSupabase && (
+                <button 
+                    onClick={handleLoadFromCloud} 
+                    disabled={isCloudSyncing}
+                    className="flex items-center gap-2 px-6 py-3 bg-indigo-900/50 text-indigo-200 hover:bg-indigo-900 border border-indigo-700/50 rounded-lg shadow-lg transition-colors disabled:opacity-50 font-semibold"
+                >
+                   <CloudIcon className="w-5 h-5" />
+                   {isCloudSyncing ? 'Loading...' : 'Load from Cloud'}
+                </button>
+             )}
           </div>
         </div>
       </div>
