@@ -184,7 +184,34 @@ export async function extendMasterProfile(currentProfile: string, newDocs: strin
 
 export async function getTailoredCV(cv: string, jobPosting: string, language: string): Promise<{ tailoredCv: string; changesSummary: string; suggestedFilename: string; }> {
   try {
-    const prompt = `Tailor this CV to the job description. Language: ${language}. Maintain exact dates. CV: ${cv} Job: ${jobPosting}`;
+    const prompt = `
+      You are an expert Executive Resume Writer.
+
+      **CONTEXT:**
+      - **Source Material:** The provided "Current CV/Profile" is a **Master Profile**. It is a comprehensive database containing the candidate's *entire* career history, every project, and every skill. It is intentionally too long.
+      - **Target:** The "Job Description" is the specific role being applied for.
+
+      **YOUR TASK:**
+      Create a **targeted, high-impact CV** derived from the Master Profile that is laser-focused on the Job Description.
+
+      **STRICT CONSTRAINTS:**
+      1. **LENGTH LIMIT:** The output CV must be **MAXIMUM 2 PAGES** long. You MUST cut, summarize, or omit information to meet this limit.
+      2. **CURATION:** Do NOT simply reformat the Master Profile. You must aggressively **FILTER** content.
+         - Include ONLY experience and skills relevant to *this specific job*.
+         - For older or irrelevant roles, reduce them to just Title, Company, and Dates, or omit them entirely if they add no value.
+      3. **ACCURACY:** You must maintain the exact dates and company names from the source. Do NOT hallucinate experiences.
+      4. **LANGUAGE:** Write the output in **${language}**.
+      5. **FORMAT:** Standard Markdown CV format.
+
+      **INPUT DATA:**
+      
+      --- MASTER PROFILE (SOURCE) ---
+      ${cv}
+
+      --- JOB DESCRIPTION (TARGET) ---
+      ${jobPosting}
+    `;
+
     // Updated to gemini-3-pro-preview for precision in tailoring
     const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
@@ -194,8 +221,8 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
             responseSchema: {
                 type: Type.OBJECT,
                 properties: {
-                    tailoredCv: { type: Type.STRING },
-                    changesSummary: { type: Type.STRING },
+                    tailoredCv: { type: Type.STRING, description: "The tailored markdown CV, max 2 pages." },
+                    changesSummary: { type: Type.STRING, description: "A bulleted list explaining what was kept, what was cut, and why, to fit the 2-page limit." },
                     suggestedFilename: { type: Type.STRING }
                 }
             }
