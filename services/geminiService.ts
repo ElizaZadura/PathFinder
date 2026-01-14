@@ -202,6 +202,7 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
       3. **ACCURACY:** You must maintain the exact dates and company names from the source. Do NOT hallucinate experiences.
       4. **LANGUAGE:** Write the output in **${language}**.
       5. **FORMAT:** Standard Markdown CV format.
+      6. **FORBIDDEN WORDS:** Do NOT use the word "current" or "currently" anywhere in the document (e.g., instead of "current role", use "Senior Developer"; instead of "currently managing", use "managing"). Use "Present" for ongoing date ranges (e.g. "2023 - Present").
 
       **INPUT DATA:**
       
@@ -236,7 +237,13 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
 
 export async function generateCoverLetter(cv: string, jobPosting: string, language: string): Promise<string> {
   try {
-    const prompt = `Write a cover letter in ${language} for this job. Resume: ${cv} Job: ${jobPosting}`;
+    const prompt = `
+      Write a professional cover letter in ${language} for this job application.
+      Resume: ${cv}
+      Job Description: ${jobPosting}
+      
+      Constraint: Do NOT use the word "current" or "currently" (e.g., do NOT say "In my current role"). Instead, refer to the specific role title or company name, or structure the sentence differently.
+    `;
     // Updated to gemini-3-pro-preview
     const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
@@ -257,7 +264,14 @@ export async function generateCoverLetter(cv: string, jobPosting: string, langua
 
 export async function refineCoverLetter(cv: string, jobPosting: string, currentCoverLetter: string, refinementRequest: string, language: string): Promise<string> {
     try {
-        const prompt = `Refine this cover letter: ${currentCoverLetter}. Request: ${refinementRequest}. Language: ${language}`;
+        const prompt = `
+          Refine this cover letter based on the user's request.
+          Current Letter: ${currentCoverLetter}
+          User Request: ${refinementRequest}
+          Language: ${language}
+          
+          Constraint: Do NOT use the word "current" or "currently" unless the user specifically asks you to add it.
+        `;
         // Updated to gemini-3-pro-preview
         const response = await ai.models.generateContent({
             model: 'gemini-3-pro-preview',
@@ -278,7 +292,14 @@ export async function refineCoverLetter(cv: string, jobPosting: string, currentC
 
 export async function refineCV(cv: string, jobPosting: string, currentTailoredCv: string, refinementRequest: string, language: string): Promise<{ tailoredCv: string; changesSummary: string; }> {
     try {
-        const prompt = `Refine this CV: ${currentTailoredCv}. Request: ${refinementRequest}. Language: ${language}`;
+        const prompt = `
+          Refine this tailored CV based on the user's request.
+          Current CV: ${currentTailoredCv}
+          User Request: ${refinementRequest}
+          Language: ${language}
+          
+          Constraint: Ensure the output does NOT contain the word "current" or "currently" unless the user's request specifically mandates it. Maintain the "Max 2 Pages" principle if adding content.
+        `;
         // Updated to gemini-3-pro-preview
         const response = await ai.models.generateContent({
             model: 'gemini-3-pro-preview',
@@ -424,7 +445,7 @@ export function connectToLiveSession(callbacks: {
     onClose: (e: CloseEvent) => void;
 }) {
   return ai.live.connect({
-    model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+    model: 'gemini-2.5-flash-native-audio-preview-12-2025',
     callbacks: {
       onopen: callbacks.onOpen,
       onmessage: callbacks.onMessage,
