@@ -202,10 +202,10 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
       3. **ACCURACY:** You must maintain the exact dates and company names from the source. Do NOT hallucinate experiences.
       4. **LANGUAGE:** Write the output in **${language}**.
       5. **FORMAT:** Standard Markdown CV format.
-      6. **FORBIDDEN WORDS:** Do NOT use the words "current", "currently", or "present" anywhere in the document.
-         - Do NOT use "Current Role" or "Currently managing".
-         - Do NOT use "Present" in date ranges (e.g. "Dec 2024 - Present"). Instead, use "Ongoing" (e.g., "2023 - Ongoing") or just the start date if preferred.
-         - Do NOT append status labels like "(Present)" or "(Current)" to dates (e.g., avoid "Dec 2024 - Nov 2025 (Present)").
+      6. **TEMPORAL WORDING CONSTRAINT:**
+         - Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed").
+         - Use only the explicit date ranges provided in the source material.
+         - Do not introduce additional status qualifiers or temporal descriptors beyond those dates. Dates alone should be sufficient to convey timing.
 
       **INPUT DATA:**
       
@@ -245,7 +245,8 @@ export async function generateCoverLetter(cv: string, jobPosting: string, langua
       Resume: ${cv}
       Job Description: ${jobPosting}
       
-      Constraint: Do NOT use the words "current", "currently", or "present" (e.g., do NOT say "In my current role" or "At present"). Instead, refer to the specific role title or company name.
+      **Temporal Wording Constraint:**
+      Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed"). Use only the explicit date ranges provided in the source material. Do not introduce additional status qualifiers or temporal descriptors beyond those dates. Dates alone should be sufficient to convey timing.
     `;
     // Updated to gemini-3-pro-preview
     const response = await ai.models.generateContent({
@@ -273,7 +274,8 @@ export async function refineCoverLetter(cv: string, jobPosting: string, currentC
           User Request: ${refinementRequest}
           Language: ${language}
           
-          Constraint: Do NOT use the words "current", "currently", or "present" unless the user specifically asks you to add them.
+          **Temporal Wording Constraint:**
+          Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed"). Use only the explicit date ranges provided in the source material. Do not introduce additional status qualifiers or temporal descriptors beyond those dates.
         `;
         // Updated to gemini-3-pro-preview
         const response = await ai.models.generateContent({
@@ -301,7 +303,8 @@ export async function refineCV(cv: string, jobPosting: string, currentTailoredCv
           User Request: ${refinementRequest}
           Language: ${language}
           
-          Constraint: Ensure the output does NOT contain the words "current", "currently", or "present" (including in date ranges, use 'Ongoing' instead). Maintain the "Max 2 Pages" principle if adding content.
+          **Temporal Wording Constraint:**
+          Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed"). Use only the explicit date ranges provided in the source material. Do not introduce additional status qualifiers or temporal descriptors beyond those dates. Dates alone should be sufficient to convey timing. Maintain the "Max 2 Pages" principle.
         `;
         // Updated to gemini-3-pro-preview
         const response = await ai.models.generateContent({

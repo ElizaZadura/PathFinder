@@ -1,9 +1,9 @@
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter, extractJobDataForCSV, refineCoverLetter, generateJobInsights, generateApplicationAnswer } from '../services/geminiService';
-import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon, ChevronDownIcon, SparklesIcon, PenIcon, DatabaseIcon } from './icons';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon, ChevronDownIcon, SparklesIcon, PenIcon, DatabaseIcon, NotionIcon } from './icons';
 import { extractTextFromFile } from '../utils/fileHelpers';
 import { saveJobApplicationToSupabase, getSupabaseClient } from '../services/supabaseService';
+import { saveJobApplicationToNotion } from '../services/notionService';
 import { Toast } from './Toast';
 import type { ATSReport, JobData } from '../types';
 
@@ -178,6 +178,7 @@ const CVTailor: React.FC = () => {
   const [isExportDataOpen, setIsExportDataOpen] = useState<boolean>(false);
   const [hasMasterProfile, setHasMasterProfile] = useState<boolean>(false);
   const [hasSupabase, setHasSupabase] = useState<boolean>(false);
+  const [hasNotion, setHasNotion] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
   // Job Insights State
@@ -202,11 +203,12 @@ const CVTailor: React.FC = () => {
     localStorage.setItem('userCv', cv);
   }, [cv]);
 
-  // Check if Master Profile exists in storage and if Supabase is connected
+  // Check if Master Profile, Supabase, Notion exist in storage
   useEffect(() => {
       // Immediate check on mount to prevent UI flicker
       const client = getSupabaseClient();
       setHasSupabase(!!client);
+      setHasNotion(!!localStorage.getItem('notion_key') && !!localStorage.getItem('notion_db_id'));
 
       const profile = localStorage.getItem('masterProfile');
       setHasMasterProfile(!!profile && profile.length > 0);
@@ -223,6 +225,9 @@ const CVTailor: React.FC = () => {
         
         const currentClient = getSupabaseClient();
         setHasSupabase(!!currentClient);
+        
+        setHasNotion(!!localStorage.getItem('notion_key') && !!localStorage.getItem('notion_db_id'));
+
       }, 1000);
       return () => clearInterval(interval);
   }, []);
@@ -396,7 +401,7 @@ const CVTailor: React.FC = () => {
     }
   }, [tailoredCv, jobPosting]);
 
-  const handleExportData = useCallback(async (format: 'csv' | 'json' | 'zip' | 'db') => {
+  const handleExportData = useCallback(async (format: 'csv' | 'json' | 'zip' | 'db' | 'notion') => {
     if (!cv || !jobPosting) {
       setError('Please provide both your CV and the job posting to export data.');
       return;
@@ -426,6 +431,8 @@ const CVTailor: React.FC = () => {
       
       // Determine final reference link: Prefer manual input, fallback to extracted URL, default to empty.
       const referenceLink = jobPostingUrl || (data.referenceUrl && data.referenceUrl !== 'Empty' ? data.referenceUrl : '');
+      // Override the data object with the correct link for downstream use
+      data.referenceUrl = referenceLink;
 
       if (format === 'db') {
           // Retrieve the currently active Master Profile ID (if set)
@@ -447,8 +454,18 @@ const CVTailor: React.FC = () => {
               master_profile_id: masterProfileId ? parseInt(masterProfileId) : null
           });
           setToast({ message: "Job Application saved to Supabase!", type: 'success' });
-      } 
-      else {
+      } else if (format === 'notion') {
+          const notionKey = localStorage.getItem('notion_key');
+          const notionDbId = localStorage.getItem('notion_db_id');
+          
+          if (!notionKey || !notionDbId) {
+             throw new Error("Notion Settings missing. Please configure them in the Settings menu.");
+          }
+
+          await saveJobApplicationToNotion(data, tailoredCv || cv, coverLetter, notionKey, notionDbId);
+          setToast({ message: "Job Application saved to Notion!", type: 'success' });
+
+      } else {
           const generateCSV = () => {
               const headers = [
                 "Application Date",
@@ -552,6 +569,8 @@ const CVTailor: React.FC = () => {
       console.error(err);
       if (format === 'db') {
           setToast({ message: `Failed to save to database: ${err.message}`, type: 'error' });
+      } else if (format === 'notion') {
+          setToast({ message: `Failed to save to Notion: ${err.message}`, type: 'error' });
       } else {
           setError(`An error occurred while exporting job data: ${err.message || 'Unknown error'}`);
       }
@@ -818,6 +837,19 @@ const CVTailor: React.FC = () => {
                             >
                                 <DatabaseIcon className={`w-4 h-4 ${hasSupabase ? 'text-indigo-400' : 'text-gray-600'}`} />
                                 <span>Save to Database {hasSupabase ? '' : '(Not Connected)'}</span>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (!hasNotion) {
+                                        setToast({ message: "Please configure Notion in the Settings menu (top right) to enable this feature.", type: "error" });
+                                        return;
+                                    }
+                                    handleExportData('notion');
+                                }}
+                                className={`block w-full text-left px-4 py-3 text-sm transition-colors flex items-center gap-2 ${hasNotion ? 'text-gray-200 hover:bg-gray-600' : 'text-gray-500 hover:bg-gray-800'}`}
+                            >
+                                <NotionIcon className={`w-4 h-4 ${hasNotion ? 'text-gray-200' : 'text-gray-600'}`} />
+                                <span>Save to Notion {hasNotion ? '' : '(Not Configured)'}</span>
                             </button>
                             <div className="border-t border-gray-600 my-1"></div>
                             <button

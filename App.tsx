@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import CVTailor from './components/CVTailor';
 import LiveConversation from './components/LiveConversation';
 import ProfileBuilder from './components/ProfileBuilder';
-import { BotIcon, EditIcon, FileStackIcon, SettingsIcon, DatabaseIcon } from './components/icons';
+import { BotIcon, EditIcon, FileStackIcon, SettingsIcon, DatabaseIcon, NotionIcon } from './components/icons';
 import { initSupabase, HARDCODED_SUPABASE_URL } from './services/supabaseService';
 
 type Tab = 'cv' | 'live' | 'profile';
@@ -20,6 +19,10 @@ const App: React.FC = () => {
     localStorage.getItem('supabase_key') || localStorage.getItem('supabaseKey') || ''
   );
   
+  // Notion Settings
+  const [notionKey, setNotionKey] = useState(() => localStorage.getItem('notion_key') || '');
+  const [notionDbId, setNotionDbId] = useState(() => localStorage.getItem('notion_db_id') || '');
+  
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
 
   useEffect(() => {
@@ -31,21 +34,28 @@ const App: React.FC = () => {
   }, []); // Only run once on mount
 
   const handleSaveSettings = () => {
+    // Save Supabase Keys
     if (!supabaseUrl || !supabaseKey) {
-        if (!window.confirm("You are about to save empty credentials. This will disconnect Supabase. Continue?")) {
+        if (supabaseUrl || supabaseKey) {
+             // If partial, do nothing? Or allow partial clearing?
+             // Logic kept simple as per request.
+        } else if (!window.confirm("You are about to save empty credentials. This will disconnect Supabase. Continue?")) {
             return;
         }
     }
 
-    // Save with new standard keys (saving hardcoded URL to localstorage is redundant but harmless)
     localStorage.setItem('supabase_url', supabaseUrl);
     localStorage.setItem('supabase_key', supabaseKey);
+    
+    // Save Notion Keys
+    localStorage.setItem('notion_key', notionKey);
+    localStorage.setItem('notion_db_id', notionDbId);
     
     // Initialize service
     const connected = initSupabase();
     setIsSupabaseConnected(connected);
     setIsSettingsOpen(false);
-    alert('Supabase settings saved!');
+    alert('Settings saved!');
   };
 
   const renderContent = () => {
@@ -82,7 +92,7 @@ const App: React.FC = () => {
             <button 
                 onClick={() => setIsSettingsOpen(true)}
                 className={`p-2 rounded-full transition-colors ${isSupabaseConnected ? 'bg-green-600/20 text-green-400' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
-                title="Database Settings"
+                title="Application Settings"
             >
                 <SettingsIcon />
             </button>
@@ -91,48 +101,81 @@ const App: React.FC = () => {
         {/* Settings Modal */}
         {isSettingsOpen && (
             <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                <div className="bg-gray-800 rounded-xl max-w-md w-full p-6 border border-gray-700 shadow-2xl">
+                <div className="bg-gray-800 rounded-xl max-w-md w-full p-6 border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold flex items-center gap-2">
-                            <DatabaseIcon className="text-indigo-400" />
-                            Supabase Connection
+                            <SettingsIcon className="text-indigo-400" />
+                            Settings
                         </h2>
                         <button onClick={() => setIsSettingsOpen(false)} className="text-gray-400 hover:text-white">&times;</button>
                     </div>
                     
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Project URL</label>
-                            <input 
-                                type="text" 
-                                value={supabaseUrl} 
-                                onChange={(e) => setSupabaseUrl(e.target.value)}
-                                disabled={!!HARDCODED_SUPABASE_URL}
-                                placeholder="https://xyz.supabase.co"
-                                className={`w-full bg-gray-900 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 ${!!HARDCODED_SUPABASE_URL ? 'text-gray-500 cursor-not-allowed' : ''}`}
-                            />
-                            {!!HARDCODED_SUPABASE_URL && <p className="text-xs text-green-500 mt-1">URL is hardcoded in code.</p>}
+                    <div className="space-y-6">
+                        {/* Supabase Section */}
+                        <div className="space-y-3 pb-4 border-b border-gray-700">
+                             <h3 className="font-semibold text-indigo-300 flex items-center gap-2">
+                                <DatabaseIcon className="w-4 h-4" /> Supabase Connection
+                             </h3>
+                             <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Project URL</label>
+                                <input 
+                                    type="text" 
+                                    value={supabaseUrl} 
+                                    onChange={(e) => setSupabaseUrl(e.target.value)}
+                                    disabled={!!HARDCODED_SUPABASE_URL}
+                                    placeholder="https://xyz.supabase.co"
+                                    className={`w-full bg-gray-900 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 ${!!HARDCODED_SUPABASE_URL ? 'text-gray-500 cursor-not-allowed' : ''}`}
+                                />
+                                {!!HARDCODED_SUPABASE_URL && <p className="text-xs text-green-500 mt-1">URL is hardcoded in code.</p>}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Anon API Key</label>
+                                <input 
+                                    type="password" 
+                                    value={supabaseKey} 
+                                    onChange={(e) => setSupabaseKey(e.target.value)}
+                                    placeholder="eyJh..."
+                                    className="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Anon API Key</label>
-                            <input 
-                                type="password" 
-                                value={supabaseKey} 
-                                onChange={(e) => setSupabaseKey(e.target.value)}
-                                placeholder="eyJh..."
-                                className="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
-                            />
+
+                        {/* Notion Section */}
+                         <div className="space-y-3">
+                             <h3 className="font-semibold text-gray-200 flex items-center gap-2">
+                                <NotionIcon className="w-4 h-4" /> Notion Integration
+                             </h3>
+                             <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Internal Integration Secret</label>
+                                <input 
+                                    type="password" 
+                                    value={notionKey} 
+                                    onChange={(e) => setNotionKey(e.target.value)}
+                                    placeholder="secret_..."
+                                    className="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
+                                />
+                            </div>
+                             <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Database ID</label>
+                                <input 
+                                    type="text" 
+                                    value={notionDbId} 
+                                    onChange={(e) => setNotionDbId(e.target.value)}
+                                    placeholder="32 character ID"
+                                    className="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
+                                />
+                            </div>
+                            <div className="bg-gray-900/50 p-2 rounded text-xs text-gray-500">
+                                <p>Required Properties: Company (Title), Position (Rich Text), Status (Select), Date (Date), Link (URL), Salary (Rich Text).</p>
+                            </div>
                         </div>
-                        <div className="bg-gray-900/50 p-3 rounded text-xs text-gray-400">
-                            <p>Enter your Supabase credentials to enable saving Profiles and Job Applications to the cloud.</p>
-                            <p className="mt-1">Required tables: <code className="text-indigo-300">master_profiles</code>, <code className="text-indigo-300">job_applications</code>.</p>
-                        </div>
+
                         <div className="flex justify-end pt-2">
                              <button 
                                 onClick={handleSaveSettings}
                                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold"
                              >
-                                Save Connection
+                                Save Settings
                              </button>
                         </div>
                     </div>
