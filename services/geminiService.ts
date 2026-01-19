@@ -70,9 +70,9 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
             ${jsonString}
         `;
 
-        // Updated to gemini-3-flash-preview for general text extraction
+        // Updated to gemini-2.5-pro-preview for consistent extraction
         const extractResponse = await ai.models.generateContent({
-            model: 'gemini-2.5',
+            model: 'gemini-2.5-pro-preview',
             contents: extractPrompt,
         });
         
@@ -101,12 +101,18 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
       Your task is to act as a simple but precise text extractor. You will be given a single URL.
       Your ONLY source of information MUST be the content at that exact URL: ${url}
       Extract and return ONLY the clean, plain text of that specific job description.
+      
+      STRICT CONSTRAINTS:
+      - Output ONLY the job description text.
+      - Do NOT add preambles like "Here is the job description" or "Based on the URL".
+      - Do NOT include navigation menu text or footer links.
+      
       If you cannot access the exact URL, respond with: "ERROR: Could not retrieve a job description from the provided URL."
     `;
 
-    // Updated to gemini-3-pro-preview for complex grounding tasks
+    // Updated to gemini-2.5-pro-preview
     const geminiResponse = await ai.models.generateContent({
-        model: 'gemini-2.5',
+        model: 'gemini-2.5-pro-preview',
         contents: prompt,
         config: {
           tools: [{googleSearch: {}}],
@@ -134,10 +140,17 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
 export async function generateMasterProfile(docs: string[]): Promise<string> {
   try {
     const combinedDocs = docs.map((doc, index) => `--- DOCUMENT ${index + 1} ---\n${doc}`).join('\n\n');
-    const prompt = `Create a comprehensive Master Career Profile in Markdown from these documents: ${combinedDocs}`;
-    // Updated to gemini-3-pro-preview for complex profile synthesis
+    const prompt = `
+        Create a comprehensive Master Career Profile in PLAIN TEXT from these documents: ${combinedDocs}
+        
+        STRICT FORMATTING:
+        - Use PLAIN TEXT only. NO Markdown syntax.
+        - NO hash headers (#). Use ALL CAPS for section titles (e.g. EXPERIENCE).
+        - NO bold (**text**) or italics (*text*).
+    `;
+    // Updated to gemini-2.5-pro-preview
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5',
+      model: 'gemini-2.5-pro-preview',
       contents: prompt,
     });
     return cleanText(response.text);
@@ -165,13 +178,14 @@ export async function extendMasterProfile(currentProfile: string, newDocs: strin
       1. Analyze the New Documents.
       2. Integrate any *new* experiences, skills, projects, education, or certifications into the structure of the Existing Master Profile.
       3. **De-duplicate:** If an experience in the New Documents already exists in the Master Profile, check if the new one provides more detail. If so, enhance the existing entry. Do not create duplicate entries for the same role/project.
-      4. **Structure:** Maintain the existing Markdown structure (Summary, Experience, Skills, etc.).
+      4. **Structure:** Maintain the existing structure.
       5. **Chronology:** Ensure the "Professional Experience" section remains sorted chronologically (newest first).
-      6. Return the **complete, updated** Master Profile in Markdown.
+      6. **FORMATTING:** Return the updated profile in PLAIN TEXT. NO Markdown syntax. NO hash headers (#). Use ALL CAPS for section titles.
     `;
     
+    // Updated to gemini-2.5-pro-preview
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5',
+      model: 'gemini-2.5-pro-preview',
       contents: prompt,
     });
 
@@ -201,11 +215,18 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
          - For older or irrelevant roles, reduce them to just Title, Company, and Dates, or omit them entirely if they add no value.
       3. **ACCURACY:** You must maintain the exact dates and company names from the source. Do NOT hallucinate experiences.
       4. **LANGUAGE:** Write the output in **${language}**.
-      5. **FORMAT:** Standard Markdown CV format.
-      6. **TEMPORAL WORDING CONSTRAINT:**
-         - Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed").
-         - Use only the explicit date ranges provided in the source material.
-         - Do not introduce additional status qualifiers or temporal descriptors beyond those dates. Dates alone should be sufficient to convey timing.
+      
+      **FORMATTING & STYLE (CRITICAL):**
+      - **PLAIN TEXT ONLY**: Do NOT use Markdown formatting.
+      - **NO MARKDOWN SYNTAX**: No bold (**), no italics (_), no hash-headers (#), no bullet points (* or - used as markdown). You may use simple dashes (-) for lists if needed for readability in plain text.
+      - **LINKS**: Render links as "Label: https://url". Do NOT use [Label](URL) syntax.
+      - **HEADERS**: Use ONLY these section headers in ALL CAPS: SUMMARY, EXPERIENCE, PROJECTS, SKILLS, EDUCATION. Do not use non-standard headers.
+      - **NO PREAMBLE**: Start directly with the content. Do not say "Here is the CV".
+      
+      **TEMPORAL WORDING CONSTRAINT:**
+      - Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed").
+      - Use only the explicit date ranges provided in the source material.
+      - Do not introduce additional status qualifiers or temporal descriptors beyond those dates. Dates alone should be sufficient to convey timing.
 
       **INPUT DATA:**
       
@@ -216,16 +237,16 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
       ${jobPosting}
     `;
 
-    // Updated to gemini-3-pro-preview for precision in tailoring
+    // Updated to gemini-2.5-pro-preview for precision in tailoring
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5',
+        model: 'gemini-2.5-pro-preview',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
             responseSchema: {
                 type: Type.OBJECT,
                 properties: {
-                    tailoredCv: { type: Type.STRING, description: "The tailored markdown CV, max 2 pages." },
+                    tailoredCv: { type: Type.STRING, description: "The tailored CV in PLAIN TEXT format (no markdown)." },
                     changesSummary: { type: Type.STRING, description: "A bulleted list explaining what was kept, what was cut, and why, to fit the 2-page limit." },
                     suggestedFilename: { type: Type.STRING }
                 }
@@ -248,9 +269,9 @@ export async function generateCoverLetter(cv: string, jobPosting: string, langua
       **Temporal Wording Constraint:**
       Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed"). Use only the explicit date ranges provided in the source material. Do not introduce additional status qualifiers or temporal descriptors beyond those dates. Dates alone should be sufficient to convey timing.
     `;
-    // Updated to gemini-3-pro-preview
+    // Updated to gemini-2.5-pro-preview
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5',
+        model: 'gemini-2.5-pro-preview',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -277,9 +298,9 @@ export async function refineCoverLetter(cv: string, jobPosting: string, currentC
           **Temporal Wording Constraint:**
           Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed"). Use only the explicit date ranges provided in the source material. Do not introduce additional status qualifiers or temporal descriptors beyond those dates.
         `;
-        // Updated to gemini-3-pro-preview
+        // Updated to gemini-2.5-pro-preview
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5',
+            model: 'gemini-2.5-pro-preview',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -303,12 +324,18 @@ export async function refineCV(cv: string, jobPosting: string, currentTailoredCv
           User Request: ${refinementRequest}
           Language: ${language}
           
+          **STRICT FORMATTING:**
+          - Maintain PLAIN TEXT format. NO Markdown.
+          - NO hash headers (#). Use ALL CAPS for section titles.
+          - Links: "Label: URL".
+          - No preamble.
+          
           **Temporal Wording Constraint:**
           Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed"). Use only the explicit date ranges provided in the source material. Do not introduce additional status qualifiers or temporal descriptors beyond those dates. Dates alone should be sufficient to convey timing. Maintain the "Max 2 Pages" principle.
         `;
-        // Updated to gemini-3-pro-preview
+        // Updated to gemini-2.5-pro-preview
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5',
+            model: 'gemini-2.5-pro-preview',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -326,9 +353,9 @@ export async function refineCV(cv: string, jobPosting: string, currentTailoredCv
 
 export async function extractKeywords(jobPosting: string): Promise<string[]> {
     try {
-        // Updated to gemini-3-flash-preview
+        // Updated to gemini-2.5-pro-preview
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5',
+            model: 'gemini-2.5-pro-preview',
             contents: `Extract top keywords from: ${jobPosting}`,
             config: {
                 responseMimeType: 'application/json',
@@ -347,9 +374,9 @@ export async function extractKeywords(jobPosting: string): Promise<string[]> {
 export async function checkATSCompliance(cv: string, jobPosting: string): Promise<ATSReport> {
   try {
     const prompt = `Analyze ATS compliance for this CV against the job description. Provide report in JSON. CV: ${cv} Job: ${jobPosting}`;
-    // Updated to gemini-3-pro-preview and fixed 'alignmentScore' property reference in required array
+    // Updated to gemini-2.5-pro-preview
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5',
+        model: 'gemini-2.5-pro-preview',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -391,9 +418,9 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
       Job: ${jobPosting}
     `;
 
-    // Updated to gemini-3-pro-preview
+    // Updated to gemini-2.5-pro-preview
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5',
+      model: 'gemini-2.5-pro-preview',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -425,8 +452,8 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
 export async function generateJobInsights(cv: string, jobPosting: string, query: string): Promise<string> {
   try {
     const prompt = `Consultant role. Question: ${query}. CV: ${cv}. Job: ${jobPosting}`;
-    // Updated to gemini-3-pro-preview
-    const response = await ai.models.generateContent({ model: 'gemini-2.5', contents: prompt });
+    // Updated to gemini-2.5-pro-preview
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-pro-preview', contents: prompt });
     return cleanText(response.text);
   } catch (error) {
     throw new Error("Failed to generate insights.");
@@ -436,8 +463,8 @@ export async function generateJobInsights(cv: string, jobPosting: string, query:
 export async function generateApplicationAnswer(cv: string, jobPosting: string, question: string): Promise<string> {
   try {
     const prompt = `Write a short answer for: ${question}. Context: CV: ${cv} Job: ${jobPosting}. Rules: Natural tone, 1st person, 2-5 sentences.`;
-    // Updated to gemini-3-flash-preview
-    const response = await ai.models.generateContent({ model: 'gemini-2.5', contents: prompt });
+    // Updated to gemini-2.5-pro-preview
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-pro-preview', contents: prompt });
     return cleanText(response.text);
   } catch (error) {
     throw new Error("Failed to generate answer.");
