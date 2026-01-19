@@ -72,7 +72,7 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
 
         // Updated to gemini-3-flash-preview for general text extraction
         const extractResponse = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-2.5',
             contents: extractPrompt,
         });
         
@@ -106,7 +106,7 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
 
     // Updated to gemini-3-pro-preview for complex grounding tasks
     const geminiResponse = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-2.5',
         contents: prompt,
         config: {
           tools: [{googleSearch: {}}],
@@ -137,7 +137,7 @@ export async function generateMasterProfile(docs: string[]): Promise<string> {
     const prompt = `Create a comprehensive Master Career Profile in Markdown from these documents: ${combinedDocs}`;
     // Updated to gemini-3-pro-preview for complex profile synthesis
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.5',
       contents: prompt,
     });
     return cleanText(response.text);
@@ -171,7 +171,7 @@ export async function extendMasterProfile(currentProfile: string, newDocs: strin
     `;
     
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.5',
       contents: prompt,
     });
 
@@ -218,7 +218,7 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
 
     // Updated to gemini-3-pro-preview for precision in tailoring
     const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-2.5',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -250,7 +250,7 @@ export async function generateCoverLetter(cv: string, jobPosting: string, langua
     `;
     // Updated to gemini-3-pro-preview
     const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-2.5',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -279,7 +279,7 @@ export async function refineCoverLetter(cv: string, jobPosting: string, currentC
         `;
         // Updated to gemini-3-pro-preview
         const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview',
+            model: 'gemini-2.5',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -308,7 +308,7 @@ export async function refineCV(cv: string, jobPosting: string, currentTailoredCv
         `;
         // Updated to gemini-3-pro-preview
         const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview',
+            model: 'gemini-2.5',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -328,7 +328,7 @@ export async function extractKeywords(jobPosting: string): Promise<string[]> {
     try {
         // Updated to gemini-3-flash-preview
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-2.5',
             contents: `Extract top keywords from: ${jobPosting}`,
             config: {
                 responseMimeType: 'application/json',
@@ -349,7 +349,7 @@ export async function checkATSCompliance(cv: string, jobPosting: string): Promis
     const prompt = `Analyze ATS compliance for this CV against the job description. Provide report in JSON. CV: ${cv} Job: ${jobPosting}`;
     // Updated to gemini-3-pro-preview and fixed 'alignmentScore' property reference in required array
     const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-2.5',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -393,7 +393,7 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
 
     // Updated to gemini-3-pro-preview
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.5',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -426,7 +426,7 @@ export async function generateJobInsights(cv: string, jobPosting: string, query:
   try {
     const prompt = `Consultant role. Question: ${query}. CV: ${cv}. Job: ${jobPosting}`;
     // Updated to gemini-3-pro-preview
-    const response = await ai.models.generateContent({ model: 'gemini-3-pro-preview', contents: prompt });
+    const response = await ai.models.generateContent({ model: 'gemini-2.5', contents: prompt });
     return cleanText(response.text);
   } catch (error) {
     throw new Error("Failed to generate insights.");
@@ -437,7 +437,7 @@ export async function generateApplicationAnswer(cv: string, jobPosting: string, 
   try {
     const prompt = `Write a short answer for: ${question}. Context: CV: ${cv} Job: ${jobPosting}. Rules: Natural tone, 1st person, 2-5 sentences.`;
     // Updated to gemini-3-flash-preview
-    const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+    const response = await ai.models.generateContent({ model: 'gemini-2.5', contents: prompt });
     return cleanText(response.text);
   } catch (error) {
     throw new Error("Failed to generate answer.");
