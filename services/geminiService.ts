@@ -70,9 +70,9 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
             ${jsonString}
         `;
 
-        // Updated to gemini-2.5-pro-preview for consistent extraction
+        // Reverted to gemini-2.5-pro
         const extractResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-pro-preview',
+            model: 'gemini-2.5-pro',
             contents: extractPrompt,
         });
         
@@ -110,9 +110,9 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
       If you cannot access the exact URL, respond with: "ERROR: Could not retrieve a job description from the provided URL."
     `;
 
-    // Updated to gemini-2.5-pro-preview
+    // Reverted to gemini-2.5-pro
     const geminiResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-pro-preview',
+        model: 'gemini-2.5-pro',
         contents: prompt,
         config: {
           tools: [{googleSearch: {}}],
@@ -148,9 +148,9 @@ export async function generateMasterProfile(docs: string[]): Promise<string> {
         - NO hash headers (#). Use ALL CAPS for section titles (e.g. EXPERIENCE).
         - NO bold (**text**) or italics (*text*).
     `;
-    // Updated to gemini-2.5-pro-preview
+    // Reverted to gemini-2.5-pro
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-pro-preview',
+      model: 'gemini-2.5-pro',
       contents: prompt,
     });
     return cleanText(response.text);
@@ -183,9 +183,9 @@ export async function extendMasterProfile(currentProfile: string, newDocs: strin
       6. **FORMATTING:** Return the updated profile in PLAIN TEXT. NO Markdown syntax. NO hash headers (#). Use ALL CAPS for section titles.
     `;
     
-    // Updated to gemini-2.5-pro-preview
+    // Reverted to gemini-2.5-pro
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-pro-preview',
+      model: 'gemini-2.5-pro',
       contents: prompt,
     });
 
@@ -237,9 +237,9 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
       ${jobPosting}
     `;
 
-    // Updated to gemini-2.5-pro-preview for precision in tailoring
+    // Reverted to gemini-2.5-pro
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro-preview',
+        model: 'gemini-2.5-pro',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -269,9 +269,9 @@ export async function generateCoverLetter(cv: string, jobPosting: string, langua
       **Temporal Wording Constraint:**
       Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed"). Use only the explicit date ranges provided in the source material. Do not introduce additional status qualifiers or temporal descriptors beyond those dates. Dates alone should be sufficient to convey timing.
     `;
-    // Updated to gemini-2.5-pro-preview
+    // Reverted to gemini-2.5-pro
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro-preview',
+        model: 'gemini-2.5-pro',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -298,9 +298,9 @@ export async function refineCoverLetter(cv: string, jobPosting: string, currentC
           **Temporal Wording Constraint:**
           Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed"). Use only the explicit date ranges provided in the source material. Do not introduce additional status qualifiers or temporal descriptors beyond those dates.
         `;
-        // Updated to gemini-2.5-pro-preview
+        // Reverted to gemini-2.5-pro
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-pro-preview',
+            model: 'gemini-2.5-pro',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -316,9 +316,17 @@ export async function refineCoverLetter(cv: string, jobPosting: string, currentC
     }
 }
 
-export async function refineCV(cv: string, jobPosting: string, currentTailoredCv: string, refinementRequest: string, language: string): Promise<{ tailoredCv: string; changesSummary: string; }> {
+export async function refineCV(
+    cv: string, 
+    jobPosting: string, 
+    currentTailoredCv: string, 
+    refinementRequest: string, 
+    language: string,
+    imageBase64?: string,
+    imageMimeType?: string
+): Promise<{ tailoredCv: string; changesSummary: string; }> {
     try {
-        const prompt = `
+        const promptText = `
           Refine this tailored CV based on the user's request.
           Current CV: ${currentTailoredCv}
           User Request: ${refinementRequest}
@@ -333,10 +341,26 @@ export async function refineCV(cv: string, jobPosting: string, currentTailoredCv
           **Temporal Wording Constraint:**
           Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed"). Use only the explicit date ranges provided in the source material. Do not introduce additional status qualifiers or temporal descriptors beyond those dates. Dates alone should be sufficient to convey timing. Maintain the "Max 2 Pages" principle.
         `;
-        // Updated to gemini-2.5-pro-preview
+
+        const parts: any[] = [];
+        
+        if (imageBase64 && imageMimeType) {
+            parts.push({
+                inlineData: {
+                    data: imageBase64,
+                    mimeType: imageMimeType
+                }
+            });
+        }
+        
+        parts.push({
+            text: promptText
+        });
+
+        // Reverted to gemini-2.5-pro
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-pro-preview',
-            contents: prompt,
+            model: 'gemini-2.5-pro',
+            contents: { parts },
             config: {
                 responseMimeType: 'application/json',
                 responseSchema: {
@@ -353,9 +377,9 @@ export async function refineCV(cv: string, jobPosting: string, currentTailoredCv
 
 export async function extractKeywords(jobPosting: string): Promise<string[]> {
     try {
-        // Updated to gemini-2.5-pro-preview
+        // Reverted to gemini-2.5-pro
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-pro-preview',
+            model: 'gemini-2.5-pro',
             contents: `Extract top keywords from: ${jobPosting}`,
             config: {
                 responseMimeType: 'application/json',
@@ -374,9 +398,9 @@ export async function extractKeywords(jobPosting: string): Promise<string[]> {
 export async function checkATSCompliance(cv: string, jobPosting: string): Promise<ATSReport> {
   try {
     const prompt = `Analyze ATS compliance for this CV against the job description. Provide report in JSON. CV: ${cv} Job: ${jobPosting}`;
-    // Updated to gemini-2.5-pro-preview
+    // Reverted to gemini-2.5-pro
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro-preview',
+        model: 'gemini-2.5-pro',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -418,9 +442,9 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
       Job: ${jobPosting}
     `;
 
-    // Updated to gemini-2.5-pro-preview
+    // Reverted to gemini-2.5-pro
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-pro-preview',
+      model: 'gemini-2.5-pro',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -452,8 +476,8 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
 export async function generateJobInsights(cv: string, jobPosting: string, query: string): Promise<string> {
   try {
     const prompt = `Consultant role. Question: ${query}. CV: ${cv}. Job: ${jobPosting}`;
-    // Updated to gemini-2.5-pro-preview
-    const response = await ai.models.generateContent({ model: 'gemini-2.5-pro-preview', contents: prompt });
+    // Reverted to gemini-2.5-pro
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-pro', contents: prompt });
     return cleanText(response.text);
   } catch (error) {
     throw new Error("Failed to generate insights.");
@@ -463,8 +487,8 @@ export async function generateJobInsights(cv: string, jobPosting: string, query:
 export async function generateApplicationAnswer(cv: string, jobPosting: string, question: string): Promise<string> {
   try {
     const prompt = `Write a short answer for: ${question}. Context: CV: ${cv} Job: ${jobPosting}. Rules: Natural tone, 1st person, 2-5 sentences.`;
-    // Updated to gemini-2.5-pro-preview
-    const response = await ai.models.generateContent({ model: 'gemini-2.5-pro-preview', contents: prompt });
+    // Reverted to gemini-2.5-pro
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-pro', contents: prompt });
     return cleanText(response.text);
   } catch (error) {
     throw new Error("Failed to generate answer.");

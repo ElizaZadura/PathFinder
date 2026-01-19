@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { getTailoredCV, extractKeywords, getJobDescriptionFromUrl, refineCV, checkATSCompliance, generateCoverLetter, extractJobDataForCSV, refineCoverLetter, generateJobInsights, generateApplicationAnswer } from '../services/geminiService';
-import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon, ChevronDownIcon, SparklesIcon, PenIcon, DatabaseIcon, NotionIcon } from './icons';
+import { UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, InfoIcon, TrashIcon, StopIcon, TableIcon, UserIcon, ChevronDownIcon, SparklesIcon, PenIcon, DatabaseIcon, NotionIcon, ImageIcon, MagicWandIcon } from './icons';
 import { extractTextFromFile } from '../utils/fileHelpers';
 import { saveJobApplicationToSupabase, getSupabaseClient } from '../services/supabaseService';
 import { saveJobApplicationToNotion } from '../services/notionService';
@@ -180,7 +180,8 @@ const CVTailor: React.FC = () => {
   const [hasSupabase, setHasSupabase] = useState<boolean>(false);
   const [hasNotion, setHasNotion] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  
+  const [refinementImage, setRefinementImage] = useState<{ data: string; mimeType: string } | null>(null);
+
   // Job Insights State
   const [isInsightsOpen, setIsInsightsOpen] = useState<boolean>(false);
   const [insightQuery, setInsightQuery] = useState<string>('');
@@ -194,6 +195,7 @@ const CVTailor: React.FC = () => {
   const [isGeneratingQa, setIsGeneratingQa] = useState<boolean>(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const cvSaveDropdownRef = useRef<HTMLDivElement>(null);
   const clSaveDropdownRef = useRef<HTMLDivElement>(null);
   const exportDataDropdownRef = useRef<HTMLDivElement>(null);
@@ -354,16 +356,25 @@ const CVTailor: React.FC = () => {
     setError(null);
     setAtsReport(null);
     try {
-      const result = await refineCV(cv, jobPosting, tailoredCv, refinementRequest, outputLanguage);
+      const result = await refineCV(
+          cv, 
+          jobPosting, 
+          tailoredCv, 
+          refinementRequest, 
+          outputLanguage,
+          refinementImage?.data,
+          refinementImage?.mimeType
+      );
       setTailoredCv(result.tailoredCv);
       setChangesSummary(prev => [...prev, result.changesSummary]);
       setRefinementRequest('');
+      setRefinementImage(null);
     } catch (err) {
       setError('An error occurred while refining your CV. Please try again.');
     } finally {
       setIsRefining(false);
     }
-  }, [refinementRequest, tailoredCv, cv, jobPosting, outputLanguage]);
+  }, [refinementRequest, tailoredCv, cv, jobPosting, outputLanguage, refinementImage]);
 
   const handleRefineCl = useCallback(async () => {
       if (!clRefinementRequest || !coverLetter) {
@@ -595,6 +606,73 @@ const CVTailor: React.FC = () => {
     }
   };
   
+  const handleImageLoad = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Check if it's an image
+    if (!file.type.startsWith('image/')) {
+        setToast({ message: "Please upload an image file.", type: "error" });
+        return;
+    }
+    
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onload = () => {
+        if (typeof reader.result === 'string') {
+             // Remove the data URL prefix (e.g., "data:image/jpeg;base64,") to get just the base64 string
+            const base64Data = reader.result.split(',')[1];
+            setRefinementImage({
+                data: base64Data,
+                mimeType: file.type
+            });
+            setToast({ message: "Image attached successfully.", type: "success" });
+        }
+    };
+    reader.onerror = () => {
+        setToast({ message: "Failed to read image file.", type: "error" });
+    };
+    reader.readAsDataURL(file);
+    
+    if (event.target) event.target.value = '';
+  };
+
+  const handlePopulateAtsFixes = () => {
+    if (!atsReport) return;
+    
+    const fixes: string[] = [];
+    if (atsReport.layoutSafety.issues.length > 0) {
+        fixes.push("Fix the following layout issues: " + atsReport.layoutSafety.issues.join(", "));
+    }
+    if (atsReport.formatting.issues.length > 0) {
+        fixes.push("Fix the following formatting issues: " + atsReport.formatting.issues.join(", "));
+    }
+    
+    const missingKeywords = atsReport.keywordMatch.jobKeywords
+        .filter(k => {
+             const found = atsReport.keywordMatch.cvKeywords.find(cvk => cvk.keyword.toLowerCase() === k.keyword.toLowerCase());
+             return !found || found.count === 0;
+        })
+        .map(k => k.keyword);
+
+    if (missingKeywords.length > 0) {
+        fixes.push("Integrate these missing keywords naturally: " + missingKeywords.join(", "));
+    }
+    
+    if (fixes.length === 0) {
+        setRefinementRequest("Please improve the CV's ATS score based on general best practices.");
+    } else {
+        setRefinementRequest(fixes.join("\n\n"));
+    }
+    
+    // Scroll to the textarea to show the user what happened
+    const textarea = document.getElementById('refine-cv-textarea');
+    if (textarea) {
+        textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        textarea.focus();
+    }
+  };
+  
   const handleLoadMasterProfile = () => {
       const profile = localStorage.getItem('masterProfile');
       if (profile) {
@@ -623,6 +701,7 @@ const CVTailor: React.FC = () => {
     setSuggestedFilename('Tailored-CV');
     setRefinementRequest('');
     setClRefinementRequest('');
+    setRefinementImage(null);
     setInsightQuery('');
     setInsightResult('');
     setQaQuestion('');
@@ -1079,11 +1158,64 @@ const CVTailor: React.FC = () => {
 
               <div className="p-4 bg-gray-800/50 rounded-lg mt-6">
                 <h3 className="font-semibold text-lg mb-3 text-indigo-400">Need Changes? Ask Gemini.</h3>
-                <textarea value={refinementRequest} onChange={(e) => setRefinementRequest(e.target.value)} placeholder="e.g., 'Make the summary more concise' or 'Add a section for my certifications'" className={`${commonTextAreaClass} h-24`} />
-                <div className="text-right mt-2">
-                  <button onClick={handleRefine} disabled={isRefining || !refinementRequest} className="px-6 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center min-w-[120px] ml-auto">
-                    {isRefining ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : 'Refine CV'}
-                  </button>
+                <textarea 
+                    id="refine-cv-textarea"
+                    value={refinementRequest} 
+                    onChange={(e) => setRefinementRequest(e.target.value)} 
+                    placeholder="e.g., 'Make the summary more concise' or 'Add a section for my certifications'" 
+                    className={`${commonTextAreaClass} h-24 mb-3`} 
+                />
+                
+                {/* Image Attachment Preview */}
+                {refinementImage && (
+                    <div className="flex items-center gap-3 mb-3 p-2 bg-gray-900 rounded border border-gray-700 max-w-md">
+                        <div className="w-10 h-10 rounded overflow-hidden bg-gray-800">
+                             <img src={`data:${refinementImage.mimeType};base64,${refinementImage.data}`} alt="Refinement attachment" className="w-full h-full object-cover" />
+                        </div>
+                        <span className="text-sm text-gray-300 flex-grow truncate">Image attached</span>
+                        <button onClick={() => setRefinementImage(null)} className="p-1 hover:text-red-400 text-gray-500">
+                            <XCircleIcon className="w-5 h-5" />
+                        </button>
+                    </div>
+                )}
+
+                <div className="flex justify-between items-center gap-4 flex-wrap">
+                    <div className="flex items-center gap-2">
+                         <input 
+                            type="file" 
+                            ref={imageInputRef} 
+                            onChange={handleImageLoad} 
+                            accept="image/*" 
+                            className="hidden" 
+                        />
+                         <button 
+                            onClick={() => imageInputRef.current?.click()}
+                            className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm text-gray-200 transition-colors"
+                            title="Attach a screenshot or image"
+                         >
+                            <ImageIcon className="w-4 h-4" />
+                            <span className="hidden sm:inline">Attach Image</span>
+                         </button>
+
+                         {atsReport && (
+                            <button 
+                                onClick={handlePopulateAtsFixes}
+                                className="flex items-center gap-2 px-3 py-2 bg-green-900/50 hover:bg-green-800/50 text-green-300 border border-green-700/50 rounded-lg text-sm transition-colors"
+                                title="Automatically populate fixes from the ATS report"
+                            >
+                                <MagicWandIcon className="w-4 h-4" />
+                                <span className="hidden sm:inline">Populate ATS Fixes</span>
+                            </button>
+                         )}
+                    </div>
+
+                    <button 
+                        onClick={handleRefine} 
+                        disabled={isRefining || (!refinementRequest && !refinementImage)} 
+                        className="px-6 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center min-w-[120px]"
+                    >
+                        {isRefining ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : 'Refine CV'}
+                    </button>
                 </div>
               </div>
             </div>

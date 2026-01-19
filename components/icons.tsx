@@ -148,3 +148,20 @@ export const NotionIcon: React.FC<{ className?: string }> = ({ className = 'w-5 
     <path d="M4.22 1.25a.576.576 0 0 0-.43.18L.23 4.98a.572.572 0 0 0 .3.93l2.84.58v15.93a.572.572 0 0 0 .57.57h15.91a.572.572 0 0 0 .5-.32l3.41-8.52a.572.572 0 0 0-.02-.48L19.86 1.7a.572.572 0 0 0-.5-.32H4.22ZM17.1 20.91h-3.34V7.58c0-.62-.12-1.07-.36-1.34-.23-.28-.62-.42-1.15-.42-.51 0-.96.22-1.34.66-.39.44-.58.98-.58 1.62v12.81H6.99V7.58c0-.62-.12-1.07-.37-1.34-.24-.28-.63-.42-1.15-.42-.5 0-.95.22-1.33.66-.38.44-.57.98-.57 1.62v12.81H2.43V6.26l2.37.49.49 1.6c.72-1.46 1.83-2.19 3.32-2.19.78 0 1.43.23 1.95.7.53.46.84 1.13.94 2 .69-1.8 1.89-2.7 3.59-2.7 1.13 0 2.01.32 2.65.95.64.64.96 1.57.96 2.8v11Z" />
   </svg>
 );
+
+export const ImageIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+    <polyline points="21 15 16 10 5 21"></polyline>
+  </svg>
+);
+
+export const MagicWandIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+    <polyline points="14 2 14 8 20 8"></polyline>
+    <path d="m2 2 4 4"></path>
+    <path d="m21 21-4.3-4.3"></path>
+  </svg>
+);
