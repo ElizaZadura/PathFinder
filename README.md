@@ -1,3 +1,4 @@
+
 # Gemini CV & Conversation Assistant
 
 A web application that leverages the Gemini API to help you tailor your CV for specific job applications and practice your interview skills with a real-time voice assistant.
@@ -7,14 +8,16 @@ A web application that leverages the Gemini API to help you tailor your CV for s
 -   **Profile Builder**: Upload multiple documents (old CVs, project notes, LinkedIn exports) to create a comprehensive "Master Career Profile".
 -   **Cloud Sync & Database**: Connect to a **Supabase** backend to save your Master Profile to the cloud and log every job application in a structured database for easy tracking.
 -   **CV Tailoring**: Automatically rewrites your CV to highlight the most relevant skills and experience for a given job posting. Includes strict date handling to preserve your history.
--   **Smart URL Fetching**: automatically extracts job descriptions from URLs, with specialized support for **Arbetsförmedlingen** API handling.
+-   **Smart URL Fetching (Scraper)**: 
+    -   **Supabase Edge Function**: Uses a backend proxy to bypass CORS and scrap content from almost any job board URL.
+    -   **Arbetsförmedlingen API**: Native support for `arbetsformedlingen.se` to pull structured data directly.
 -   **Interactive Editing**: The tailored CV output is fully editable, allowing you to make manual tweaks before saving or analyzing.
 -   **Cover Letter Generation**: Creates a professional and compelling cover letter based on your CV and the job description.
 -   **Job Insights**: Ask Gemini free-form questions about your fit for the role, potential weak points, likely interview questions, or salary expectations.
 -   **Application Q&A Helper**: A dedicated tool to generate short, natural, first-person answers for specific job application form questions (e.g., "Why do you want to work here?").
 -   **CV Refinement**: Allows you to provide natural language feedback (e.g., "make the summary more concise") to iteratively improve your tailored CV.
 -   **ATS Friendliness Analysis**: Scans your tailored CV against the job posting to provide a detailed Applicant Tracking System (ATS) compliance report.
--   **Job Data Export**: Extracts key details (Position, Company, Salary, etc.) into **CSV**, **JSON**, **ZIP**, or saves directly to your **Supabase Database**.
+-   **Job Data Export**: Extracts key details (Position, Company, Salary, etc.) into **CSV**, **JSON**, **ZIP**, **Notion**, or saves directly to your **Supabase Database**.
 -   **Live Conversation**: Engage in a real-time, voice-based conversation with Gemini. Perfect for interview practice or general queries.
 
 ## How to Run/Build
@@ -47,13 +50,39 @@ To run this project locally, you'll need to have Node.js and a package manager l
     ```
     This command will generate a `dist` folder with the production-ready files.
 
-### Supabase Configuration (Optional)
-To enable Cloud Sync and Database features:
+## Configuration Guide
+
+### 1. Supabase Setup (Recommended)
+To enable Cloud Sync, Database logging, and **Robust URL Scraping**:
+
 1.  Create a project at [Supabase.com](https://supabase.com).
-2.  Create two tables: `master_profiles` (columns: `id`, `content`) and `job_applications` (columns like `company_name`, `position`, `status`, etc.).
-3.  In the app, click the **Settings (Gear)** icon in the top right.
-4.  Enter your **Project URL** and **Anon Key**.
-5.  Click **Save Connection**.
+2.  **Database Tables**:
+    -   Create `master_profiles` (columns: `id`, `content`, `created_at`).
+    -   Create `job_applications` (columns: `company_name`, `position`, `status`, `application_date`, `reference_link`, `salary`, `notes`, `contact`, `company_description`, `cv_text`, `cover_letter`, `master_profile_id`).
+3.  **Edge Function (Crucial for Scraper)**:
+    -   Go to the **Edge Functions** tab in Supabase.
+    -   Create a new function named `fetch-job-content`.
+    -   Deploy the Deno scraper code (logic that accepts a URL, fetches the HTML, cleans it, and returns text).
+4.  **Connect App**:
+    -   In the app, click the **Settings (Gear)** icon in the top right.
+    -   Enter your **Supabase Project URL** and **Anon Key**.
+    -   Click **Save Settings**.
+
+### 2. Notion Integration (Optional)
+To save job applications directly to a Notion database:
+
+1.  **Create Integration**: Go to [Notion My Integrations](https://www.notion.so/my-integrations) and create a new Internal Integration. Copy the **Internal Integration Secret**.
+2.  **Create Database**: Create a database in Notion with the following properties:
+    -   `Company` (Title)
+    -   `Position` (Rich Text)
+    -   `Status` (Select)
+    -   `Date` (Date)
+    -   `Link` (URL)
+    -   `Salary` (Rich Text)
+    -   `Next Action` (Rich Text)
+3.  **Connect**: Open your Notion Database page -> Click "..." (top right) -> "Add connections" -> Select your new integration.
+4.  **Get ID**: Copy the Database ID from the URL (it's the long string after the workspace name and before the `?`).
+5.  **Configure App**: Enter the **Secret Key** and **Database ID** in the App Settings menu.
 
 ## How to Use
 
@@ -68,14 +97,14 @@ To enable Cloud Sync and Database features:
 
 1.  Navigate to the **CV Tailor** tab.
 2.  **Input CV**: Paste your current CV, upload a file (`.pdf`, `.docx`, `.txt`), or click **Load Master** to use your Master Profile.
-3.  **Input Job**: Paste a URL (supports **Arbetsförmedlingen** and generic sites) and click "Fetch", or paste the text manually.
+3.  **Input Job**: Paste a URL. The app will use the **Supabase Edge Function** to scrape the content. If that fails, it falls back to Gemini Search. You can also paste text manually.
 4.  Select your desired output language.
 5.  Click **Tailor My CV**. The result is editable—feel free to tweak the text directly in the box.
 6.  **Job Insights**: Click the **Job Insights** button to ask questions about your fit for the role.
 7.  **App Q&A**: Click **App Q&A** to generate answers for specific application form questions.
 8.  **Cover Letter**: Click **Generate Cover Letter**.
 9.  **ATS Check**: Click **Analyze ATS Friendliness** for a compliance report.
-10. **Export**: Click **Export Job Data** to download details in CSV/JSON/ZIP or **Save to Database** (if Supabase is connected).
+10. **Export**: Click **Export Job Data** to download details in CSV/JSON/ZIP or **Save to Database / Notion**.
 11. **Save**: Use the **Save As...** dropdowns to download your CV and Cover Letter as Text or PDF.
 
 ### Live Chat
