@@ -36,6 +36,42 @@ export const getSupabaseClient = () => {
     return supabase;
 };
 
+export const isSupabaseConfigured = () => {
+    const { url, key } = getSupabaseConfig();
+    return !!(url && key);
+}
+
+// --- Edge Functions ---
+
+export const fetchJobDescriptionFromEdge = async (url: string): Promise<string | null> => {
+    const client = getSupabaseClient();
+    if (!client) return null;
+
+    try {
+        console.log("Invoking Edge Function 'fetch-job-content' for:", url);
+        
+        // Ensure we are using the correct function name created in Supabase Dashboard
+        const { data, error } = await client.functions.invoke('fetch-job-content', {
+            body: { url },
+        });
+
+        if (error) {
+            console.warn("Supabase Edge Function Error:", error);
+            // Don't throw, just return null so we can fallback to Gemini
+            return null;
+        }
+
+        if (data && data.content) {
+            return data.content;
+        }
+        
+        return null;
+    } catch (err) {
+        console.error("Failed to invoke edge function:", err);
+        return null;
+    }
+};
+
 // --- Master Profile Operations ---
 
 export const saveMasterProfileToSupabase = async (content: string) => {

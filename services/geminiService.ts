@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, LiveServerMessage, Modality } from "@google/genai";
 import { ATSReport, JobData } from '../types';
+import { fetchJobDescriptionFromEdge, isSupabaseConfigured } from './supabaseService';
 
 // Ensure the API key is available, but do not hardcode it.
 if (!process.env.API_KEY) {
@@ -15,7 +16,7 @@ function cleanText(text: string | undefined): string {
 }
 
 export async function getJobDescriptionFromUrl(url: string): Promise<string> {
-  // Special handling for arbetsformedlingen.se, which uses a public API.
+  // 1. Special handling for arbetsformedlingen.se (Public API)
   const arbetsformedlingenRegex = /arbetsformedlingen\.se\/platsbanken\/annonser\/(\d+)/;
   const match = url.match(arbetsformedlingenRegex);
 
@@ -58,7 +59,7 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
       if (description && description.trim().length > 0) {
         return cleanText(description);
       } 
-
+      // If we got data but couldn't find description field, try LLM extraction on the JSON
       try {
         const jsonString = JSON.stringify(data).slice(0, 30000);
         const extractPrompt = `
@@ -70,7 +71,6 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
             ${jsonString}
         `;
 
-        // Reverted to gemini-2.5-pro
         const extractResponse = await ai.models.generateContent({
             model: 'gemini-2.5-pro',
             contents: extractPrompt,
@@ -83,20 +83,59 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
       } catch (fallbackError) {
         console.error("Gemini fallback extraction failed:", fallbackError);
       }
-
       throw new Error("Job description not found in the Arbetsförmedlingen API response.");
-
     } catch (apiError) {
       console.error("Error fetching from Arbetsförmedlingen API:", apiError);
-      throw new Error("Failed to fetch job description from the Arbetsförmedlingen API. Please try pasting the text manually.");
+      throw new Error("Failed to fetch job description from the Arbetsförmedlingen API.");
     }
   }
 
+  // 2. Try Supabase Edge Function (Proxy/Scraper)
+  // This bypasses CORS and can fetch the actual HTML content of the page.
+  if (isSupabaseConfigured()) {
+      try {
+          console.log("Attempting to fetch via Supabase Edge Function...");
+          const edgeContent = await fetchJobDescriptionFromEdge(url);
+          
+          if (edgeContent && edgeContent.length > 100) {
+              console.log("Edge Function returned content. Length:", edgeContent.length);
+              
+              // Refine the raw scraped text with Gemini to extract just the Job Description
+              const refinePrompt = `
+                I have scraped the text from a job posting webpage. It contains navigation menus, footers, and other noise.
+                
+                YOUR TASK:
+                Extract ONLY the **Job Description**, **Responsibilities**, and **Requirements/Qualifications**.
+                Remove all navigation, headers, footers, and "Apply Now" buttons.
+                
+                SCRAPED TEXT:
+                ${edgeContent.slice(0, 50000)} 
+              `;
+              
+              const refineResponse = await ai.models.generateContent({
+                  model: 'gemini-2.5-pro',
+                  contents: refinePrompt,
+              });
+
+              const refinedText = (refineResponse.text || "").trim();
+              if (refinedText) return cleanText(refinedText);
+          } else {
+              console.log("Edge Function returned empty or too short content. Falling back to Search.");
+          }
+      } catch (edgeError) {
+          console.error("Edge Function failed:", edgeError);
+          // Fall through to method 3
+      }
+  }
+
+  // 3. Fallback: Gemini Search Grounding
+  // This relies on Google's search index. Good for older posts, bad for very new ones or non-indexed pages.
   try {
     if (!url.startsWith('http')) {
       throw new Error("Invalid URL provided.");
     }
     
+    console.log("Falling back to Gemini Search Grounding...");
     const prompt = `
       Your task is to act as a simple but precise text extractor. You will be given a single URL.
       Your ONLY source of information MUST be the content at that exact URL: ${url}
@@ -110,7 +149,6 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
       If you cannot access the exact URL, respond with: "ERROR: Could not retrieve a job description from the provided URL."
     `;
 
-    // Reverted to gemini-2.5-pro
     const geminiResponse = await ai.models.generateContent({
         model: 'gemini-2.5-pro',
         contents: prompt,
@@ -148,7 +186,6 @@ export async function generateMasterProfile(docs: string[]): Promise<string> {
         - NO hash headers (#). Use ALL CAPS for section titles (e.g. EXPERIENCE).
         - NO bold (**text**) or italics (*text*).
     `;
-    // Reverted to gemini-2.5-pro
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-pro',
       contents: prompt,
@@ -183,7 +220,6 @@ export async function extendMasterProfile(currentProfile: string, newDocs: strin
       6. **FORMATTING:** Return the updated profile in PLAIN TEXT. NO Markdown syntax. NO hash headers (#). Use ALL CAPS for section titles.
     `;
     
-    // Reverted to gemini-2.5-pro
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-pro',
       contents: prompt,
@@ -237,7 +273,6 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
       ${jobPosting}
     `;
 
-    // Reverted to gemini-2.5-pro
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-pro',
         contents: prompt,
@@ -269,7 +304,6 @@ export async function generateCoverLetter(cv: string, jobPosting: string, langua
       **Temporal Wording Constraint:**
       Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed"). Use only the explicit date ranges provided in the source material. Do not introduce additional status qualifiers or temporal descriptors beyond those dates. Dates alone should be sufficient to convey timing.
     `;
-    // Reverted to gemini-2.5-pro
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-pro',
         contents: prompt,
@@ -298,7 +332,6 @@ export async function refineCoverLetter(cv: string, jobPosting: string, currentC
           **Temporal Wording Constraint:**
           Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed"). Use only the explicit date ranges provided in the source material. Do not introduce additional status qualifiers or temporal descriptors beyond those dates.
         `;
-        // Reverted to gemini-2.5-pro
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-pro',
             contents: prompt,
@@ -357,7 +390,6 @@ export async function refineCV(
             text: promptText
         });
 
-        // Reverted to gemini-2.5-pro
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-pro',
             contents: { parts },
@@ -377,7 +409,6 @@ export async function refineCV(
 
 export async function extractKeywords(jobPosting: string): Promise<string[]> {
     try {
-        // Reverted to gemini-2.5-pro
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-pro',
             contents: `Extract top keywords from: ${jobPosting}`,
@@ -398,7 +429,6 @@ export async function extractKeywords(jobPosting: string): Promise<string[]> {
 export async function checkATSCompliance(cv: string, jobPosting: string): Promise<ATSReport> {
   try {
     const prompt = `Analyze ATS compliance for this CV against the job description. Provide report in JSON. CV: ${cv} Job: ${jobPosting}`;
-    // Reverted to gemini-2.5-pro
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-pro',
         contents: prompt,
@@ -442,7 +472,6 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
       Job: ${jobPosting}
     `;
 
-    // Reverted to gemini-2.5-pro
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-pro',
       contents: prompt,
@@ -476,7 +505,6 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
 export async function generateJobInsights(cv: string, jobPosting: string, query: string): Promise<string> {
   try {
     const prompt = `Consultant role. Question: ${query}. CV: ${cv}. Job: ${jobPosting}`;
-    // Reverted to gemini-2.5-pro
     const response = await ai.models.generateContent({ model: 'gemini-2.5-pro', contents: prompt });
     return cleanText(response.text);
   } catch (error) {
@@ -487,7 +515,6 @@ export async function generateJobInsights(cv: string, jobPosting: string, query:
 export async function generateApplicationAnswer(cv: string, jobPosting: string, question: string): Promise<string> {
   try {
     const prompt = `Write a short answer for: ${question}. Context: CV: ${cv} Job: ${jobPosting}. Rules: Natural tone, 1st person, 2-5 sentences.`;
-    // Reverted to gemini-2.5-pro
     const response = await ai.models.generateContent({ model: 'gemini-2.5-pro', contents: prompt });
     return cleanText(response.text);
   } catch (error) {
