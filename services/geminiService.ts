@@ -283,7 +283,7 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
                 properties: {
                     tailoredCv: { type: Type.STRING, description: "The tailored CV in PLAIN TEXT format (no markdown)." },
                     changesSummary: { type: Type.STRING, description: "A bulleted list explaining what was kept, what was cut, and why, to fit the 2-page limit." },
-                    suggestedFilename: { type: Type.STRING }
+                    suggestedFilename: { type: Type.STRING, description: "Filename without extension (e.g. FirstName-LastName-Role-CV)" }
                 }
             }
         }

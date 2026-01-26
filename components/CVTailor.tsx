@@ -730,11 +730,14 @@ const CVTailor: React.FC = () => {
   const handleSaveAsTxt = (content: string, baseFilename: string) => {
     if (!content) return;
     
+    // Strip existing extension if present to avoid duplication
+    const cleanName = baseFilename.replace(/\.(txt|pdf|docx|doc)$/i, '');
+
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${baseFilename}.txt`;
+    link.download = `${cleanName}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -743,6 +746,9 @@ const CVTailor: React.FC = () => {
 
   const handleSaveAsPdf = (content: string, baseFilename: string) => {
     if (!content || !window.jspdf) return;
+
+    // Strip existing extension if present
+    const cleanName = baseFilename.replace(/\.(txt|pdf|docx|doc)$/i, '');
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
@@ -769,7 +775,7 @@ const CVTailor: React.FC = () => {
         cursorY += lineHeight;
     });
 
-    doc.save(`${baseFilename}.pdf`);
+    doc.save(`${cleanName}.pdf`);
   };
 
   const handleInsightSubmit = async (queryOverride?: string) => {
