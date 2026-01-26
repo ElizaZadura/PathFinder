@@ -72,7 +72,7 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
         `;
 
         const extractResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-pro',
+            model: 'gemini-3-flash-preview',
             contents: extractPrompt,
         });
         
@@ -113,7 +113,7 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
               `;
               
               const refineResponse = await ai.models.generateContent({
-                  model: 'gemini-2.5-pro',
+                  model: 'gemini-3-flash-preview',
                   contents: refinePrompt,
               });
 
@@ -150,7 +150,7 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
     `;
 
     const geminiResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-3-pro-preview',
         contents: prompt,
         config: {
           tools: [{googleSearch: {}}],
@@ -187,7 +187,7 @@ export async function generateMasterProfile(docs: string[]): Promise<string> {
         - NO bold (**text**) or italics (*text*).
     `;
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-pro',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
     });
     return cleanText(response.text);
@@ -221,7 +221,7 @@ export async function extendMasterProfile(currentProfile: string, newDocs: strin
     `;
     
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-pro',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
     });
 
@@ -274,7 +274,7 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
     `;
 
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-3-pro-preview',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -305,7 +305,7 @@ export async function generateCoverLetter(cv: string, jobPosting: string, langua
       Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed"). Use only the explicit date ranges provided in the source material. Do not introduce additional status qualifiers or temporal descriptors beyond those dates. Dates alone should be sufficient to convey timing.
     `;
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-3-pro-preview',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -333,7 +333,7 @@ export async function refineCoverLetter(cv: string, jobPosting: string, currentC
           Do not add or infer any status language that implies present-tense activity, continuity, or completion (e.g. "current", "ongoing", "active", "in progress", "completed"). Use only the explicit date ranges provided in the source material. Do not introduce additional status qualifiers or temporal descriptors beyond those dates.
         `;
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-pro',
+            model: 'gemini-3-pro-preview',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -391,7 +391,7 @@ export async function refineCV(
         });
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-pro',
+            model: 'gemini-3-pro-preview',
             contents: { parts },
             config: {
                 responseMimeType: 'application/json',
@@ -410,7 +410,7 @@ export async function refineCV(
 export async function extractKeywords(jobPosting: string): Promise<string[]> {
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-pro',
+            model: 'gemini-3-flash-preview',
             contents: `Extract top keywords from: ${jobPosting}`,
             config: {
                 responseMimeType: 'application/json',
@@ -430,7 +430,7 @@ export async function checkATSCompliance(cv: string, jobPosting: string): Promis
   try {
     const prompt = `Analyze ATS compliance for this CV against the job description. Provide report in JSON. CV: ${cv} Job: ${jobPosting}`;
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-3-pro-preview',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -473,7 +473,7 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-pro',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -498,6 +498,7 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
     const result = JSON.parse(response.text || "{}");
     return result as JobData;
   } catch (error) {
+    console.error("Error extracting job data:", error);
     throw new Error("Failed to extract job data.");
   }
 }
@@ -505,7 +506,7 @@ export async function extractJobDataForCSV(cv: string, jobPosting: string): Prom
 export async function generateJobInsights(cv: string, jobPosting: string, query: string): Promise<string> {
   try {
     const prompt = `Consultant role. Question: ${query}. CV: ${cv}. Job: ${jobPosting}`;
-    const response = await ai.models.generateContent({ model: 'gemini-2.5-pro', contents: prompt });
+    const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
     return cleanText(response.text);
   } catch (error) {
     throw new Error("Failed to generate insights.");
@@ -515,7 +516,7 @@ export async function generateJobInsights(cv: string, jobPosting: string, query:
 export async function generateApplicationAnswer(cv: string, jobPosting: string, question: string): Promise<string> {
   try {
     const prompt = `Write a short answer for: ${question}. Context: CV: ${cv} Job: ${jobPosting}. Rules: Natural tone, 1st person, 2-5 sentences.`;
-    const response = await ai.models.generateContent({ model: 'gemini-2.5-pro', contents: prompt });
+    const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
     return cleanText(response.text);
   } catch (error) {
     throw new Error("Failed to generate answer.");
