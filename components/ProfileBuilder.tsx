@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { generateMasterProfile, extendMasterProfile } from '../services/geminiService';
-import { UploadIcon, FileStackIcon, TrashIcon, DownloadIcon, CloudIcon } from './icons';
+import { generateMasterProfile, extendMasterProfile, processUrlForProfile } from '../services/geminiService';
+import { UploadIcon, FileStackIcon, TrashIcon, DownloadIcon, CloudIcon, LinkIcon } from './icons';
 import { extractTextFromFile } from '../utils/fileHelpers';
 import { saveMasterProfileToSupabase, getLatestMasterProfileFromSupabase, getSupabaseClient } from '../services/supabaseService';
 import { Toast } from './Toast';
@@ -19,6 +19,9 @@ const ProfileBuilder: React.FC = () => {
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
   const [hasSupabase, setHasSupabase] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  
+  const [urlInput, setUrlInput] = useState<string>('');
+  const [isUrlProcessing, setIsUrlProcessing] = useState<boolean>(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveDropdownRef = useRef<HTMLDivElement>(null);
@@ -67,6 +70,27 @@ const ProfileBuilder: React.FC = () => {
       setIsProcessing(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+  
+  const handleUrlSubmit = async () => {
+      if (!urlInput || !urlInput.startsWith('http')) {
+          setToast({ message: "Please enter a valid URL (starting with http/https).", type: 'error' });
+          return;
+      }
+      
+      setIsUrlProcessing(true);
+      setError(null);
+      try {
+          const summary = await processUrlForProfile(urlInput);
+          setFiles(prev => [...prev, { name: `URL: ${urlInput}`, content: summary }]);
+          setUrlInput('');
+          setToast({ message: "URL content processed and added!", type: 'success' });
+      } catch (err: any) {
+          setError(err.message || "Failed to process URL.");
+          setToast({ message: "Failed to fetch URL content.", type: 'error' });
+      } finally {
+          setIsUrlProcessing(false);
+      }
   };
 
   const handleRemoveFile = (index: number) => {
@@ -182,12 +206,12 @@ const ProfileBuilder: React.FC = () => {
           Profile Builder
         </h2>
         <p className="text-gray-400 mb-6">
-          Upload multiple documents (Old CVs, Project Summaries, LinkedIn exports) to create a single, comprehensive "Master Career Profile".
+          Upload multiple documents (Old CVs, Project Summaries) or paste URLs (GitHub Repos, Portfolios) to create a single, comprehensive "Master Career Profile".
           This master profile will then be used to tailor your CV for specific jobs with higher accuracy.
         </p>
         
         <div className="space-y-4">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center flex-wrap">
              <input 
                 type="file" 
                 multiple 
@@ -198,20 +222,44 @@ const ProfileBuilder: React.FC = () => {
              />
              <button 
                 onClick={() => fileInputRef.current?.click()} 
-                disabled={isProcessing}
+                disabled={isProcessing || isUrlProcessing}
                 className="flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50"
              >
                <UploadIcon className="w-5 h-5" />
-               {isProcessing ? 'Processing...' : 'Upload Files (PDF, DOCX, TXT)'}
+               {isProcessing ? 'Processing Files...' : 'Upload Files (PDF, DOCX)'}
              </button>
-             <span className="text-sm text-gray-500">{files.length} files loaded</span>
+             
+             <div className="hidden md:block w-px h-10 bg-gray-700"></div>
+             
+             <div className="flex-grow flex gap-2 w-full md:w-auto">
+                 <input 
+                    type="url" 
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    placeholder="https://github.com/username/repo"
+                    className="flex-grow p-3 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm min-w-[200px]"
+                 />
+                 <button 
+                    onClick={handleUrlSubmit}
+                    disabled={isProcessing || isUrlProcessing || !urlInput}
+                    className="px-4 py-2 bg-indigo-800 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                 >
+                    {isUrlProcessing ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <LinkIcon className="w-4 h-4" />}
+                    <span>Fetch URL</span>
+                 </button>
+             </div>
           </div>
+          
+          <div className="text-sm text-gray-500">{files.length} items ready to process</div>
 
           {files.length > 0 && (
             <div className="bg-gray-900/50 rounded-lg p-4 space-y-2 max-h-48 overflow-y-auto">
               {files.map((file, index) => (
                 <div key={index} className="flex justify-between items-center bg-gray-800 p-2 rounded border border-gray-700">
-                  <span className="text-sm truncate max-w-[80%]">{file.name}</span>
+                  <div className="flex items-center gap-2 overflow-hidden">
+                      {file.name.startsWith('URL:') ? <LinkIcon className="w-4 h-4 text-indigo-400 flex-shrink-0" /> : <FileStackIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                      <span className="text-sm truncate max-w-[300px]">{file.name}</span>
+                  </div>
                   <button onClick={() => handleRemoveFile(index)} className="text-red-400 hover:text-red-300 p-1">
                     <TrashIcon className="w-4 h-4" />
                   </button>
@@ -225,12 +273,12 @@ const ProfileBuilder: React.FC = () => {
           <div className="flex justify-center pt-4 gap-4 flex-wrap">
              <button 
                 onClick={handleGenerateProfile} 
-                disabled={files.length === 0 || isProcessing}
+                disabled={files.length === 0 || isProcessing || isUrlProcessing}
                 className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-lg hover:bg-indigo-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all"
              >
                {isProcessing 
                   ? 'Processing...' 
-                  : (masterProfile ? 'Update Profile with New Files' : 'Generate Master Profile')
+                  : (masterProfile ? 'Update Profile with New Items' : 'Generate Master Profile')
                }
              </button>
 

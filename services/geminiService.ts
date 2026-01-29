@@ -15,6 +15,80 @@ function cleanText(text: string | undefined): string {
     return text.replace(/\\n/g, '\n').replace(/\\r/g, '').trim();
 }
 
+export async function processUrlForProfile(url: string): Promise<string> {
+    try {
+        let content = "";
+        
+        // 1. Try generic scraping first (if configured)
+        if (isSupabaseConfigured()) {
+            console.log("Attempting to fetch URL via Supabase Edge Function:", url);
+            const edgeContent = await fetchJobDescriptionFromEdge(url);
+            if (edgeContent && edgeContent.length > 100) {
+                content = edgeContent;
+            }
+        }
+        
+        // 2. Fallback to Gemini Search if scraping failed or not configured
+        if (!content) {
+            console.log("Fetching URL via Gemini Search Grounding:", url);
+            const prompt = `
+                Retrieve the text content from this URL: ${url}
+                Return the full visible text content of the page.
+            `;
+            const geminiResponse = await ai.models.generateContent({
+                model: 'gemini-3-pro-preview',
+                contents: prompt,
+                config: {
+                    tools: [{googleSearch: {}}],
+                },
+            });
+            const text = geminiResponse.text;
+            if (text && !text.startsWith("ERROR")) {
+                content = text;
+            }
+        }
+
+        if (!content) {
+            throw new Error("Could not retrieve content from the provided URL.");
+        }
+
+        // 3. Summarize as a Project Entry
+        const summaryPrompt = `
+            You are a Career Architect building a Master Profile.
+            
+            SOURCE URL: ${url}
+            SOURCE CONTENT:
+            ${content.slice(0, 50000)}
+            
+            TASK:
+            Analyze the source content (which is likely a GitHub repository, project page, or technical article).
+            Create a concise "Project Entry" suitable for a CV/Portfolio.
+            
+            FORMAT:
+            Project Name: [Name]
+            URL: ${url}
+            Tech Stack: [List technologies found]
+            Summary: [3-4 sentence professional summary of functionality and your potential role/work]
+            Key Features:
+            - [Feature 1]
+            - [Feature 2]
+            
+            Keep it professional, technical, and concise.
+        `;
+
+        const summaryResponse = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: summaryPrompt,
+        });
+
+        return cleanText(summaryResponse.text);
+
+    } catch (error) {
+        console.error("Error processing URL for profile:", error);
+        throw new Error("Failed to process URL. Ensure it is accessible.");
+    }
+}
+
 export async function getJobDescriptionFromUrl(url: string): Promise<string> {
   // 1. Special handling for arbetsformedlingen.se (Public API)
   const arbetsformedlingenRegex = /arbetsformedlingen\.se\/platsbanken\/annonser\/(\d+)/;
