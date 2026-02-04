@@ -5,6 +5,12 @@ import { extractTextFromFile } from '../utils/fileHelpers';
 import { saveMasterProfileToSupabase, getLatestMasterProfileFromSupabase, getSupabaseClient } from '../services/supabaseService';
 import { Toast } from './Toast';
 
+declare global {
+  interface Window {
+    jspdf: any;
+  }
+}
+
 interface UploadedFile {
   name: string;
   content: string;
@@ -150,6 +156,49 @@ const ProfileBuilder: React.FC = () => {
      document.body.removeChild(link);
      URL.revokeObjectURL(url);
      setIsSaveOpen(false);
+  };
+
+  const handleSaveAsPdf = () => {
+    if (!masterProfile) return;
+    
+    if (!window.jspdf) {
+        setToast({ message: "PDF library not loaded yet. Please refresh the page.", type: 'error' });
+        return;
+    }
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        const margin = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const usableWidth = pageWidth - margin * 2;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+
+        const lines = doc.splitTextToSize(masterProfile, usableWidth);
+        
+        let cursorY = margin;
+        const lineHeight = 7;
+
+        lines.forEach((line: string) => {
+            if (cursorY + lineHeight > pageHeight - margin) {
+                doc.addPage();
+                cursorY = margin;
+            }
+            doc.text(line, margin, cursorY);
+            cursorY += lineHeight;
+        });
+
+        doc.save('Master_Career_Profile.pdf');
+        setIsSaveOpen(false);
+        setToast({ message: "PDF Saved!", type: 'success' });
+    } catch (err) {
+        console.error(err);
+        setToast({ message: "Failed to generate PDF.", type: 'error' });
+    }
   };
 
   const handleClearProfile = () => {
@@ -346,6 +395,9 @@ const ProfileBuilder: React.FC = () => {
                             <div className="py-1">
                                 <button onClick={() => handleSaveProfile('md')} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 transition-colors">
                                     Save as Markdown (.md)
+                                </button>
+                                <button onClick={handleSaveAsPdf} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 transition-colors">
+                                    Save as PDF (.pdf)
                                 </button>
                                 <button onClick={() => handleSaveProfile('json')} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 transition-colors">
                                     Save as JSON (.json)
