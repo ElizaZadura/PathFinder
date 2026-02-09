@@ -64,6 +64,10 @@ export async function processUrlForProfile(url: string): Promise<string> {
             Analyze the source content (which is likely a GitHub repository, project page, or technical article).
             Create a concise "Project Entry" suitable for a CV/Portfolio.
             
+            **FACTUAL ACCURACY:**
+            - Strictly adhere to the technologies and features explicitly mentioned in the source.
+            - Do NOT infer or hallucinate tech stacks (e.g., do not assume AWS or Azure unless explicitly stated).
+            
             FORMAT:
             Project Name: [Name]
             URL: ${url}
@@ -259,6 +263,12 @@ export async function generateMasterProfile(docs: string[]): Promise<string> {
         - Use PLAIN TEXT only. NO Markdown syntax.
         - NO hash headers (#). Use ALL CAPS for section titles (e.g. EXPERIENCE).
         - NO bold (**text**) or italics (*text*).
+
+        **FACTUAL ACCURACY IS PARAMOUNT:**
+        - You must ONLY use the information strictly provided in the source documents.
+        - Do NOT invent, exaggerate, or hallucinate skills, technologies, or experiences.
+        - Do NOT infer that the candidate knows a specific cloud provider (AWS, Azure, GCP) or specific tool unless it is explicitly mentioned in the source text.
+        - If the source is vague, remain vague. Do not fill in the blanks with "standard industry practices" if the user didn't claim them.
     `;
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
@@ -292,6 +302,11 @@ export async function extendMasterProfile(currentProfile: string, newDocs: strin
       4. **Structure:** Maintain the existing structure.
       5. **Chronology:** Ensure the "Professional Experience" section remains sorted chronologically (newest first).
       6. **FORMATTING:** Return the updated profile in PLAIN TEXT. NO Markdown syntax. NO hash headers (#). Use ALL CAPS for section titles.
+
+      **FACTUAL ACCURACY:**
+      - ONLY add information explicitly found in the "New Documents". 
+      - Do NOT hallucinate skills or technologies not present in the text.
+      - Do NOT infer proficiency in tools not listed.
     `;
     
     const response = await ai.models.generateContent({
@@ -323,7 +338,12 @@ export async function getTailoredCV(cv: string, jobPosting: string, language: st
       2. **CURATION:** Do NOT simply reformat the Master Profile. You must aggressively **FILTER** content.
          - Include ONLY experience and skills relevant to *this specific job*.
          - For older or irrelevant roles, reduce them to just Title, Company, and Dates, or omit them entirely if they add no value.
-      3. **ACCURACY:** You must maintain the exact dates and company names from the source. Do NOT hallucinate experiences.
+      3. **ACCURACY & TRUTH:** 
+         - You must maintain the exact dates and company names from the source. 
+         - **CRITICAL:** Do NOT include skills, technologies, or experiences from the 'Job Description' if they are NOT present in the 'Master Profile'. 
+         - Do NOT claim the candidate has done things they haven't done just to match the job description.
+         - If the JD requires a skill the candidate doesn't have, OMIT IT. Do not hallucinate it.
+         - You MAY rephrase existing valid experience to use the keywords from the JD, but the underlying fact must remain true to the source.
       4. **LANGUAGE:** Write the output in **${language}**.
       
       **FORMATTING & STYLE (CRITICAL):**
