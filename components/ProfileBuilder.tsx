@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { generateMasterProfile, extendMasterProfile, processUrlForProfile } from '../services/geminiService';
-import { UploadIcon, FileStackIcon, TrashIcon, DownloadIcon, CloudIcon, LinkIcon } from './icons';
+import { UploadIcon, FileStackIcon, TrashIcon, DownloadIcon, CloudIcon, LinkIcon, PenIcon } from './icons';
 import { extractTextFromFile } from '../utils/fileHelpers';
 import { saveMasterProfileToSupabase, getLatestMasterProfileFromSupabase, getSupabaseClient } from '../services/supabaseService';
 import { Toast } from './Toast';
@@ -28,6 +28,7 @@ const ProfileBuilder: React.FC = () => {
   
   const [urlInput, setUrlInput] = useState<string>('');
   const [isUrlProcessing, setIsUrlProcessing] = useState<boolean>(false);
+  const [manualText, setManualText] = useState<string>('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveDropdownRef = useRef<HTMLDivElement>(null);
@@ -97,6 +98,16 @@ const ProfileBuilder: React.FC = () => {
       } finally {
           setIsUrlProcessing(false);
       }
+  };
+
+  const handleAddManualText = () => {
+    if (!manualText.trim()) return;
+    setFiles(prev => [...prev, { 
+        name: `Text Note (${new Date().toLocaleTimeString()})`, 
+        content: manualText 
+    }]);
+    setManualText('');
+    setToast({ message: "Text note added to queue.", type: 'success' });
   };
 
   const handleRemoveFile = (index: number) => {
@@ -255,8 +266,7 @@ const ProfileBuilder: React.FC = () => {
           Profile Builder
         </h2>
         <p className="text-gray-400 mb-6">
-          Upload multiple documents (Old CVs, Project Summaries) or paste URLs (GitHub Repos, Portfolios) to create a single, comprehensive "Master Career Profile".
-          This master profile will then be used to tailor your CV for specific jobs with higher accuracy.
+          Upload multiple documents (Old CVs, Project Summaries), paste URLs (GitHub Repos, Portfolios), or add raw text to create a single, comprehensive "Master Career Profile".
         </p>
         
         <div className="space-y-4">
@@ -299,6 +309,26 @@ const ProfileBuilder: React.FC = () => {
              </div>
           </div>
           
+          <div className="bg-gray-900/30 p-3 rounded-lg border border-gray-700/50">
+            <label className="text-xs text-gray-400 font-semibold mb-2 block uppercase tracking-wider">Add Manual Text</label>
+            <div className="flex gap-2 flex-col md:flex-row items-start">
+                 <textarea 
+                    value={manualText}
+                    onChange={(e) => setManualText(e.target.value)}
+                    placeholder="Paste or type additional bio, skills, or project details here..."
+                    className="flex-grow w-full p-3 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm min-h-[60px] resize-y"
+                 />
+                 <button 
+                    onClick={handleAddManualText}
+                    disabled={!manualText.trim()}
+                    className="px-4 py-2 h-full min-h-[60px] bg-indigo-800 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap"
+                 >
+                    <PenIcon className="w-4 h-4" />
+                    <span>Add Text</span>
+                 </button>
+            </div>
+          </div>
+          
           <div className="text-sm text-gray-500">{files.length} items ready to process</div>
 
           {files.length > 0 && (
@@ -306,7 +336,7 @@ const ProfileBuilder: React.FC = () => {
               {files.map((file, index) => (
                 <div key={index} className="flex justify-between items-center bg-gray-800 p-2 rounded border border-gray-700">
                   <div className="flex items-center gap-2 overflow-hidden">
-                      {file.name.startsWith('URL:') ? <LinkIcon className="w-4 h-4 text-indigo-400 flex-shrink-0" /> : <FileStackIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                      {file.name.startsWith('URL:') ? <LinkIcon className="w-4 h-4 text-indigo-400 flex-shrink-0" /> : file.name.startsWith('Text Note') ? <PenIcon className="w-4 h-4 text-green-400 flex-shrink-0" /> : <FileStackIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />}
                       <span className="text-sm truncate max-w-[300px]">{file.name}</span>
                   </div>
                   <button onClick={() => handleRemoveFile(index)} className="text-red-400 hover:text-red-300 p-1">
