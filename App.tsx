@@ -34,22 +34,33 @@ const App: React.FC = () => {
   }, []); // Only run once on mount
 
   const handleSaveSettings = () => {
+    // Sanitize inputs: Trim and remove non-ASCII chars to prevent header errors
+    const cleanSupabaseUrl = supabaseUrl.trim().replace(/[^\x00-\x7F]/g, "");
+    const cleanSupabaseKey = supabaseKey.trim().replace(/[^\x00-\x7F]/g, "");
+    const cleanNotionKey = notionKey.trim().replace(/[^\x00-\x7F]/g, "");
+    const cleanNotionDbId = notionDbId.trim().replace(/[^\x00-\x7F]/g, "");
+
+    // Update state with cleaned values
+    setSupabaseUrl(cleanSupabaseUrl);
+    setSupabaseKey(cleanSupabaseKey);
+    setNotionKey(cleanNotionKey);
+    setNotionDbId(cleanNotionDbId);
+
     // Save Supabase Keys
-    if (!supabaseUrl || !supabaseKey) {
-        if (supabaseUrl || supabaseKey) {
-             // If partial, do nothing? Or allow partial clearing?
-             // Logic kept simple as per request.
+    if (!cleanSupabaseUrl || !cleanSupabaseKey) {
+        if (cleanSupabaseUrl || cleanSupabaseKey) {
+             // If partial, allow it (user might be fixing things)
         } else if (!window.confirm("You are about to save empty credentials. This will disconnect Supabase. Continue?")) {
             return;
         }
     }
 
-    localStorage.setItem('supabase_url', supabaseUrl);
-    localStorage.setItem('supabase_key', supabaseKey);
+    localStorage.setItem('supabase_url', cleanSupabaseUrl);
+    localStorage.setItem('supabase_key', cleanSupabaseKey);
     
     // Save Notion Keys
-    localStorage.setItem('notion_key', notionKey);
-    localStorage.setItem('notion_db_id', notionDbId);
+    localStorage.setItem('notion_key', cleanNotionKey);
+    localStorage.setItem('notion_db_id', cleanNotionDbId);
     
     // Initialize service
     const connected = initSupabase();

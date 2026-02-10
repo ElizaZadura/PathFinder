@@ -293,7 +293,7 @@ const ProfileBuilder: React.FC = () => {
              <div className="flex-grow flex gap-2 w-full md:w-auto">
                  <input 
                     type="url" 
-                    value={urlInput}
+                    value={urlInput} 
                     onChange={(e) => setUrlInput(e.target.value)}
                     placeholder="https://github.com/username/repo"
                     className="flex-grow p-3 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm min-w-[200px]"
@@ -361,7 +361,7 @@ const ProfileBuilder: React.FC = () => {
                }
              </button>
 
-             {!masterProfile && hasSupabase && (
+             {hasSupabase && (
                 <button 
                     onClick={handleLoadFromCloud} 
                     disabled={isCloudSyncing}

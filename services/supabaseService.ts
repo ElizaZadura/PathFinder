@@ -1,4 +1,3 @@
-
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // --- CONFIGURATION ---
@@ -11,11 +10,14 @@ export const HARDCODED_SUPABASE_URL = "https://cioqhusicycehdabgmoj.supabase.co"
 
 // Get keys from localStorage to allow dynamic configuration
 const getSupabaseConfig = () => {
-    return {
-        // Prioritize the hardcoded URL, then fall back to localStorage (snake_case preferred, camelCase legacy)
-        url: HARDCODED_SUPABASE_URL || localStorage.getItem('supabase_url') || localStorage.getItem('supabaseUrl') || '',
-        key: localStorage.getItem('supabase_key') || localStorage.getItem('supabaseKey') || ''
-    };
+    let url = HARDCODED_SUPABASE_URL || localStorage.getItem('supabase_url') || localStorage.getItem('supabaseUrl') || '';
+    let key = localStorage.getItem('supabase_key') || localStorage.getItem('supabaseKey') || '';
+    
+    // Sanitize: Trim whitespace and remove non-ASCII characters that might cause header errors
+    url = url.trim().replace(/[^\x00-\x7F]/g, "");
+    key = key.trim().replace(/[^\x00-\x7F]/g, "");
+
+    return { url, key };
 };
 
 let supabase: SupabaseClient | null = null;
@@ -23,8 +25,13 @@ let supabase: SupabaseClient | null = null;
 export const initSupabase = () => {
     const { url, key } = getSupabaseConfig();
     if (url && key) {
-        supabase = createClient(url, key);
-        return true;
+        try {
+            supabase = createClient(url, key);
+            return true;
+        } catch (e) {
+            console.error("Supabase initialization failed:", e);
+            return false;
+        }
     }
     return false;
 };

@@ -7,14 +7,18 @@ export async function saveJobApplicationToNotion(
     notionKey: string,
     notionDbId: string
 ) {
-    if (!notionKey || !notionDbId) {
-        throw new Error("Notion API Key or Database ID is missing.");
+    // Sanitize inputs
+    const cleanKey = notionKey ? notionKey.trim().replace(/[^\x00-\x7F]/g, "") : "";
+    const cleanDbId = notionDbId ? notionDbId.trim().replace(/[^\x00-\x7F]/g, "") : "";
+
+    if (!cleanKey || !cleanDbId) {
+        throw new Error("Notion API Key or Database ID is missing or invalid.");
     }
 
     // Construct the payload for Notion API
     // Note: This requires the database to have these specific properties.
     const payload = {
-        parent: { database_id: notionDbId },
+        parent: { database_id: cleanDbId },
         properties: {
             "Company": {
                 title: [
@@ -133,7 +137,7 @@ export async function saveJobApplicationToNotion(
         const response = await fetch('https://api.notion.com/v1/pages', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${notionKey}`,
+                'Authorization': `Bearer ${cleanKey}`,
                 'Content-Type': 'application/json',
                 'Notion-Version': '2022-06-28'
             },
