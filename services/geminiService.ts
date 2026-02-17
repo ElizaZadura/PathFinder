@@ -64,14 +64,16 @@ export async function processUrlForProfile(url: string): Promise<string> {
             Analyze the source content (which is likely a GitHub repository, project page, or technical article).
             Create a concise "Project Entry" suitable for a CV/Portfolio.
             
-            **FACTUAL ACCURACY:**
-            - Strictly adhere to the technologies and features explicitly mentioned in the source.
-            - Do NOT infer or hallucinate tech stacks (e.g., do not assume AWS or Azure unless explicitly stated).
+            **FACTUAL ACCURACY IS CRITICAL:**
+            - **STRICTLY** adhere to the technologies and features explicitly mentioned in the source content.
+            - **DO NOT** infer or introduce related frameworks, even if the candidate has experience with them elsewhere or if they are commonly used together (e.g., do not add Redux just because React is present).
+            - **DO NOT** mention technologies like LangChain, AWS, Azure, or specific libraries unless they are explicitly listed in the project's stack/README.
+            - If the tech stack is not explicitly listed, list only what is undeniably visible in the code references or description.
             
             FORMAT:
             Project Name: [Name]
             URL: ${url}
-            Tech Stack: [List technologies found]
+            Tech Stack: [List ONLY technologies explicitly found in source]
             Summary: [3-4 sentence professional summary of functionality and your potential role/work]
             Key Features:
             - [Feature 1]
