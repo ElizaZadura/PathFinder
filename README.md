@@ -5,7 +5,8 @@ A web application that leverages the Gemini API to help you tailor your CV for s
 
 ## Features
 
--   **Profile Builder**: Upload multiple documents (old CVs, project notes, LinkedIn exports) to create a comprehensive "Master Career Profile".
+-   **Profile Builder**: Upload multiple documents (old CVs, project notes, LinkedIn exports) or **paste URLs** (e.g., GitHub repositories) to create a comprehensive "Master Career Profile".
+    -   *New*: **Strict Tech Stack Extraction**: When analyzing project URLs, the AI is now configured to strictly adhere to explicitly listed technologies, preventing the inference of unlisted frameworks.
 -   **Cloud Sync & Database**: Connect to a **Supabase** backend to save your Master Profile to the cloud and log every job application in a structured database for easy tracking.
 -   **CV Tailoring**: Automatically rewrites your CV to highlight the most relevant skills and experience for a given job posting. Includes strict date handling to preserve your history.
 -   **Smart URL Fetching (Scraper)**: 
@@ -67,6 +68,7 @@ To enable Cloud Sync, Database logging, and **Robust URL Scraping**:
     -   In the app, click the **Settings (Gear)** icon in the top right.
     -   Enter your **Supabase Project URL** and **Anon Key**.
     -   Click **Save Settings**.
+    -   *Note*: The app automatically sanitizes keys to remove accidental whitespace or non-ASCII characters.
 
 ### 2. Notion Integration (Optional)
 To save job applications directly to a Notion database:
@@ -89,8 +91,11 @@ To save job applications directly to a Notion database:
 ### Profile Builder
 
 1.  Navigate to the **Profile Builder** tab.
-2.  Upload relevant documents (old CVs, project summaries, etc.) using the upload button.
-3.  Click **Generate Master Profile** to create a consolidated markdown profile.
+2.  **Add Content**:
+    -   **Upload Files**: Upload multiple documents (old CVs, project summaries, etc.) using the upload button.
+    -   **Add URLs**: Paste links to GitHub repositories or project pages. The app will extract a technical summary, strictly adhering to the technologies listed on the page.
+    -   **Manual Text**: Paste or type raw text notes.
+3.  Click **Generate Master Profile** (or **Update Profile**) to create a consolidated markdown profile.
 4.  **Save/Load**: You can save locally, download as MD/JSON, or if Supabase is connected, click **Save Cloud** / **Load Cloud** to sync across devices.
 
 ### CV Tailor

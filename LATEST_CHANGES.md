@@ -1,6 +1,20 @@
+
 # Latest Changes
 
-## 🚀 Update: Cloud Database & Smart Tools
+## 🚀 Update: Precision & Reliability
+
+### Profile Builder: Strict Mode
+- **No Hallucinations**: When fetching content from URLs (like GitHub repositories) for your Master Profile, the AI is now explicitly instructed to **only** list technologies found in the source text. It will no longer infer related frameworks (e.g., adding Redux just because React is present) unless they are explicitly mentioned.
+
+### Settings & Configuration
+- **Credential Sanitization**: The settings input fields now automatically strip invisible non-ASCII characters and whitespace from API keys and URLs. This fixes common "Invalid Header" errors caused by copy-pasting from certain sources.
+
+### UI Improvements
+- **Profile Cloud Sync**: The "Load from Cloud" button in the Profile Builder is now always accessible when Supabase is configured, making it easier to switch contexts or restore a profile even if a local one is currently loaded.
+
+---
+
+## Previous Update: Cloud Database & Smart Tools
 
 ### Supabase Cloud Integration
 - **Cloud Sync**: Connect to a **Supabase** backend to sync your **Master Career Profile** across devices.
@@ -19,22 +33,3 @@
 ### UI & Quality of Life
 - **Unified Export Menu**: Consolidated CSV, JSON, ZIP, and Database actions into a single dropdown.
 - **Toast Notifications**: Added smooth feedback popups for actions like copying text or saving data.
-
----
-
-## Previous Update: Profile Builder
-
-### New Feature: Profile Builder
-- **Multi-File Upload**: You can now upload multiple documents at once (PDF, DOCX, TXT, MD).
-- **Master Profile Generation**: Gemini now consolidates your uploaded documents into a single, structured "Master Career Profile". This serves as a comprehensive database of your entire history (projects, skills, experience) to ensure no detail is lost when tailoring CVs.
-- **Local Storage**: The Master Profile is automatically saved to your browser's local storage so it persists between sessions.
-
-### Updates to CV Tailor
-- **"Load Master" Button**: Added a quick button to load your generated Master Profile directly into the CV input area.
-- **Enhanced File Loading**: Refactored file loading logic to support PDF parsing (via PDF.js) alongside DOCX (via Mammoth.js) and text files.
-- **UI Improvements**: Added a "Profile Builder" tab to the main navigation.
-
-### Technical Improvements
-- **PDF.js Integration**: Added support for parsing text from PDF files directly in the browser without needing a backend.
-- **Centralized File Helpers**: Created `utils/fileHelpers.ts` to manage file extraction logic centrally.
-- **Iconography**: Added new icons (`FileStackIcon`, `UserIcon`) for the new interface elements.
