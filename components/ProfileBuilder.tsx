@@ -25,6 +25,7 @@ const ProfileBuilder: React.FC = () => {
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
   const [hasSupabase, setHasSupabase] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [updateSummary, setUpdateSummary] = useState<string | null>(null);
   
   const [urlInput, setUrlInput] = useState<string>('');
   const [isUrlProcessing, setIsUrlProcessing] = useState<boolean>(false);
@@ -119,15 +120,19 @@ const ProfileBuilder: React.FC = () => {
     
     setIsProcessing(true);
     setError(null);
+    setUpdateSummary(null);
     try {
       const docsContent = files.map(f => f.content);
       
       let profile = '';
       if (masterProfile && masterProfile.trim().length > 0) {
-          profile = await extendMasterProfile(masterProfile, docsContent);
+          const result = await extendMasterProfile(masterProfile, docsContent);
+          profile = result.updatedProfile;
+          setUpdateSummary(result.summary);
           setToast({ message: "Profile updated with new documents!", type: 'success' });
       } else {
           profile = await generateMasterProfile(docsContent);
+          setUpdateSummary("Initial Master Profile generated successfully.");
           setToast({ message: "Master Profile generated!", type: 'success' });
       }
       
@@ -377,6 +382,14 @@ const ProfileBuilder: React.FC = () => {
 
       {masterProfile && (
         <div className="space-y-4 animate-fade-in">
+           {updateSummary && (
+             <div className="bg-indigo-900/30 border border-indigo-700/50 p-4 rounded-lg mb-6 animate-fade-in">
+               <h3 className="text-lg font-semibold text-indigo-300 mb-2">Update Summary</h3>
+               <div className="text-sm text-indigo-100 whitespace-pre-wrap">
+                 {updateSummary}
+               </div>
+             </div>
+           )}
            <div className="flex justify-between items-center flex-wrap gap-2">
              <h3 className="text-xl font-semibold text-gray-200">Your Master Profile</h3>
              <div className="flex items-center gap-2">

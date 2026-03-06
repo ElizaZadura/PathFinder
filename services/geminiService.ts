@@ -282,7 +282,7 @@ export async function generateMasterProfile(docs: string[]): Promise<string> {
   }
 }
 
-export async function extendMasterProfile(currentProfile: string, newDocs: string[]): Promise<string> {
+export async function extendMasterProfile(currentProfile: string, newDocs: string[]): Promise<{ updatedProfile: string; summary: string }> {
   try {
     const combinedDocs = newDocs.map((doc, index) => `--- NEW DOCUMENT ${index + 1} ---\n${doc}`).join('\n\n');
 
@@ -304,6 +304,7 @@ export async function extendMasterProfile(currentProfile: string, newDocs: strin
       4. **Structure:** Maintain the existing structure.
       5. **Chronology:** Ensure the "Professional Experience" section remains sorted chronologically (newest first).
       6. **FORMATTING:** Return the updated profile in PLAIN TEXT. NO Markdown syntax. NO hash headers (#). Use ALL CAPS for section titles.
+      7. **SUMMARY:** Provide a short, bulleted summary of what was added or updated in the profile.
 
       **FACTUAL ACCURACY:**
       - ONLY add information explicitly found in the "New Documents". 
@@ -314,9 +315,24 @@ export async function extendMasterProfile(currentProfile: string, newDocs: strin
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            updatedProfile: { type: Type.STRING, description: "The updated master profile in PLAIN TEXT." },
+            summary: { type: Type.STRING, description: "A short summary of what was added or updated." }
+          },
+          required: ["updatedProfile", "summary"]
+        }
+      }
     });
 
-    return cleanText(response.text);
+    const result = JSON.parse(response.text || "{}");
+    return {
+      updatedProfile: cleanText(result.updatedProfile),
+      summary: cleanText(result.summary)
+    };
   } catch (error) {
     console.error("Error extending master profile:", error);
     throw new Error("Failed to update Master Profile from Gemini API.");
