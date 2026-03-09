@@ -10,8 +10,10 @@ A web application that leverages the Gemini API to help you tailor your CV for s
 -   **Cloud Sync & Database**: Connect to a **Supabase** backend to save your Master Profile to the cloud and log every job application in a structured database for easy tracking.
 -   **CV Tailoring**: Automatically rewrites your CV to highlight the most relevant skills and experience for a given job posting. Includes strict date handling to preserve your history.
 -   **Smart URL Fetching (Scraper)**: 
-    -   **Supabase Edge Function**: Uses a backend proxy to bypass CORS and scrap content from almost any job board URL.
+    -   **Supabase Edge Function**: Uses a backend proxy to bypass CORS and scrape content from almost any job board URL.
+    -   **Gemini Search Grounding**: If the Edge Function fails or isn't configured, the app automatically falls back to using Google Search via Gemini to find and extract the job description.
     -   **Arbetsförmedlingen API**: Native support for `arbetsformedlingen.se` to pull structured data directly.
+    -   *New*: **Improved Error Handling**: If a URL cannot be scraped, the app now displays a clear, inline error message above the text box instead of populating the box with conversational failure text.
 -   **Interactive Editing**: The tailored CV output is fully editable, allowing you to make manual tweaks before saving or analyzing.
 -   **Cover Letter Generation**: Creates a professional and compelling cover letter based on your CV and the job description.
 -   **Job Insights**: Ask Gemini free-form questions about your fit for the role, potential weak points, likely interview questions, or salary expectations.
@@ -69,6 +71,7 @@ To enable Cloud Sync, Database logging, and **Robust URL Scraping**:
     -   Enter your **Supabase Project URL** and **Anon Key**.
     -   Click **Save Settings**.
     -   *Note*: The app automatically sanitizes keys to remove accidental whitespace or non-ASCII characters.
+    -   *Note*: The app uses a singleton pattern for the Supabase client to prevent `GoTrueClient` duplicate instance warnings during React development.
 
 ### 2. Notion Integration (Optional)
 To save job applications directly to a Notion database:

@@ -21,18 +21,31 @@ const getSupabaseConfig = () => {
 };
 
 let supabase: SupabaseClient | null = null;
+let currentUrl: string | null = null;
+let currentKey: string | null = null;
 
 export const initSupabase = () => {
     const { url, key } = getSupabaseConfig();
     if (url && key) {
+        // Prevent creating multiple instances if the credentials haven't changed
+        if (supabase && currentUrl === url && currentKey === key) {
+            return true;
+        }
         try {
             supabase = createClient(url, key);
+            currentUrl = url;
+            currentKey = key;
             return true;
         } catch (e) {
             console.error("Supabase initialization failed:", e);
             return false;
         }
     }
+    
+    // Clear the client if credentials are removed
+    supabase = null;
+    currentUrl = null;
+    currentKey = null;
     return false;
 };
 
