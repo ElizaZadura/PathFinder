@@ -30,6 +30,7 @@ const ProfileBuilder: React.FC = () => {
   const [urlInput, setUrlInput] = useState<string>('');
   const [isUrlProcessing, setIsUrlProcessing] = useState<boolean>(false);
   const [manualText, setManualText] = useState<string>('');
+  const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveDropdownRef = useRef<HTMLDivElement>(null);
@@ -218,11 +219,14 @@ const ProfileBuilder: React.FC = () => {
   };
 
   const handleClearProfile = () => {
-    if (window.confirm("Are you sure you want to clear the current Master Profile? This action cannot be undone.")) {
-      setMasterProfile('');
-      localStorage.removeItem('masterProfile');
-      localStorage.removeItem('masterProfileId');
-    }
+    setShowClearConfirm(true);
+  };
+
+  const confirmClearProfile = () => {
+    setMasterProfile('');
+    localStorage.removeItem('masterProfile');
+    localStorage.removeItem('masterProfileId');
+    setShowClearConfirm(false);
   };
 
   const handleSaveToCloud = async () => {
@@ -460,6 +464,29 @@ const ProfileBuilder: React.FC = () => {
            <p className="text-center text-green-400 text-sm">
              <span className="font-bold">✓ Saved automatically locally.</span> {hasSupabase ? 'Use Cloud buttons to sync.' : 'Configure Supabase in Settings to sync to cloud.'}
            </p>
+        </div>
+      )}
+
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl max-w-sm w-full p-6 border border-gray-700 shadow-2xl">
+            <h3 className="text-xl font-bold text-white mb-4">Clear Profile?</h3>
+            <p className="text-gray-300 mb-6">Are you sure you want to clear the current Master Profile? This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setShowClearConfirm(false)} 
+                className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmClearProfile} 
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors"
+              >
+                Clear Profile
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

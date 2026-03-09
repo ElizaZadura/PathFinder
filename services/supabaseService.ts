@@ -20,9 +20,9 @@ const getSupabaseConfig = () => {
     return { url, key };
 };
 
-let supabase: SupabaseClient | null = null;
-let currentUrl: string | null = null;
-let currentKey: string | null = null;
+let supabase: SupabaseClient | null = (window as any).__supabaseClient || null;
+let currentUrl: string | null = (window as any).__supabaseUrl || null;
+let currentKey: string | null = (window as any).__supabaseKey || null;
 
 export const initSupabase = () => {
     const { url, key } = getSupabaseConfig();
@@ -35,6 +35,12 @@ export const initSupabase = () => {
             supabase = createClient(url, key);
             currentUrl = url;
             currentKey = key;
+            
+            // Cache on window to prevent multiple instances warning during HMR
+            (window as any).__supabaseClient = supabase;
+            (window as any).__supabaseUrl = url;
+            (window as any).__supabaseKey = key;
+            
             return true;
         } catch (e) {
             console.error("Supabase initialization failed:", e);
@@ -46,6 +52,10 @@ export const initSupabase = () => {
     supabase = null;
     currentUrl = null;
     currentKey = null;
+    (window as any).__supabaseClient = null;
+    (window as any).__supabaseUrl = null;
+    (window as any).__supabaseKey = null;
+    
     return false;
 };
 

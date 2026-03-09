@@ -4,6 +4,7 @@ import LiveConversation from './components/LiveConversation';
 import ProfileBuilder from './components/ProfileBuilder';
 import { BotIcon, EditIcon, FileStackIcon, SettingsIcon, DatabaseIcon, NotionIcon } from './components/icons';
 import { initSupabase, HARDCODED_SUPABASE_URL } from './services/supabaseService';
+import { Toast } from './components/Toast';
 
 type Tab = 'cv' | 'live' | 'profile';
 
@@ -24,6 +25,8 @@ const App: React.FC = () => {
   const [notionDbId, setNotionDbId] = useState(() => localStorage.getItem('notion_db_id') || '');
   
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     // Attempt to initialize immediately on mount if keys are present in state
@@ -50,23 +53,38 @@ const App: React.FC = () => {
     if (!cleanSupabaseUrl || !cleanSupabaseKey) {
         if (cleanSupabaseUrl || cleanSupabaseKey) {
              // If partial, allow it (user might be fixing things)
-        } else if (!window.confirm("You are about to save empty credentials. This will disconnect Supabase. Continue?")) {
-            return;
+        } else if (isSupabaseConnected) {
+             setShowConfirm(true);
+             return;
         }
     }
 
-    localStorage.setItem('supabase_url', cleanSupabaseUrl);
-    localStorage.setItem('supabase_key', cleanSupabaseKey);
+    performSaveSettings(cleanSupabaseUrl, cleanSupabaseKey, cleanNotionKey, cleanNotionDbId);
+  };
+
+  const performSaveSettings = (url: string, key: string, nKey: string, nDbId: string) => {
+    localStorage.setItem('supabase_url', url);
+    localStorage.setItem('supabase_key', key);
     
     // Save Notion Keys
-    localStorage.setItem('notion_key', cleanNotionKey);
-    localStorage.setItem('notion_db_id', cleanNotionDbId);
+    localStorage.setItem('notion_key', nKey);
+    localStorage.setItem('notion_db_id', nDbId);
     
     // Initialize service
     const connected = initSupabase();
     setIsSupabaseConnected(connected);
     setIsSettingsOpen(false);
-    alert('Settings saved!');
+    setToast({ message: 'Settings saved!', type: 'success' });
+  };
+
+  const confirmSaveSettings = () => {
+    setShowConfirm(false);
+    performSaveSettings(
+        supabaseUrl.trim().replace(/[^\x00-\x7F]/g, ""), 
+        supabaseKey.trim().replace(/[^\x00-\x7F]/g, ""), 
+        notionKey.trim().replace(/[^\x00-\x7F]/g, ""), 
+        notionDbId.trim().replace(/[^\x00-\x7F]/g, "")
+    );
   };
 
   const renderContent = () => {
@@ -98,6 +116,8 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans relative">
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+        
         {/* Settings Button */}
         <div className="absolute top-4 right-4 z-50">
             <button 
@@ -189,6 +209,32 @@ const App: React.FC = () => {
                                 Save Settings
                              </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Confirmation Modal */}
+        {showConfirm && (
+            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
+                <div className="bg-gray-800 rounded-xl max-w-sm w-full p-6 border border-gray-700 shadow-2xl">
+                    <h3 className="text-lg font-bold text-white mb-2">Disconnect Supabase?</h3>
+                    <p className="text-gray-300 mb-6 text-sm">
+                        You are about to save empty credentials. This will disconnect Supabase. Continue?
+                    </p>
+                    <div className="flex justify-end gap-3">
+                        <button 
+                            onClick={() => setShowConfirm(false)}
+                            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={confirmSaveSettings}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                        >
+                            Disconnect
+                        </button>
                     </div>
                 </div>
             </div>

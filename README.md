@@ -7,7 +7,9 @@ A web application that leverages the Gemini API to help you tailor your CV for s
 
 -   **Profile Builder**: Upload multiple documents (old CVs, project notes, LinkedIn exports) or **paste URLs** (e.g., GitHub repositories) to create a comprehensive "Master Career Profile".
     -   *New*: **Strict Tech Stack Extraction**: When analyzing project URLs, the AI is now configured to strictly adhere to explicitly listed technologies, preventing the inference of unlisted frameworks.
+    -   *New*: **PDF Export**: You can now export your Master Career Profile directly to a formatted PDF document.
 -   **Cloud Sync & Database**: Connect to a **Supabase** backend to save your Master Profile to the cloud and log every job application in a structured database for easy tracking.
+    -   *New*: **Custom UI Modals**: Native browser `window.confirm` dialogs have been replaced with sleek, custom UI modals for actions like clearing profiles or disconnecting databases, providing a more seamless user experience.
 -   **CV Tailoring**: Automatically rewrites your CV to highlight the most relevant skills and experience for a given job posting. Includes strict date handling to preserve your history.
 -   **Smart URL Fetching (Scraper)**: 
     -   **Supabase Edge Function**: Uses a backend proxy to bypass CORS and scrape content from almost any job board URL.
