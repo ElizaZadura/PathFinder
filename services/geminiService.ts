@@ -188,6 +188,8 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
                 Extract ONLY the **Job Description**, **Responsibilities**, and **Requirements/Qualifications**.
                 Remove all navigation, headers, footers, and "Apply Now" buttons.
                 
+                If the scraped text does not contain a job description, responsibilities, or requirements, respond ONLY with "ERROR: Job description not found in the scraped text."
+                
                 SCRAPED TEXT:
                 ${edgeContent.slice(0, 50000)} 
               `;
@@ -198,6 +200,9 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
               });
 
               const refinedText = (refineResponse.text || "").trim();
+              if (refinedText.startsWith("ERROR:")) {
+                  throw new Error(refinedText.replace("ERROR: ", ""));
+              }
               if (refinedText) return cleanText(refinedText);
           } else {
               console.log("Edge Function returned empty or too short content. Falling back to Search.");
@@ -226,7 +231,7 @@ export async function getJobDescriptionFromUrl(url: string): Promise<string> {
       - Do NOT add preambles like "Here is the job description" or "Based on the URL".
       - Do NOT include navigation menu text or footer links.
       
-      If you cannot access the exact URL, respond with: "ERROR: Could not retrieve a job description from the provided URL."
+      If you cannot access the exact URL, or if the URL does not contain a job description, respond ONLY with: "ERROR: Could not retrieve a job description from the provided URL."
     `;
 
     const geminiResponse = await ai.models.generateContent({

@@ -169,6 +169,7 @@ const CVTailor: React.FC = () => {
   const [isRefiningCl, setIsRefiningCl] = useState<boolean>(false);
   const [clRefinementRequest, setClRefinementRequest] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [urlError, setUrlError] = useState<string | null>(null);
   const [outputLanguage, setOutputLanguage] = useState<string>('English');
   const [atsReport, setAtsReport] = useState<ATSReport | null>(null);
   const [isCheckingAts, setIsCheckingAts] = useState<boolean>(false);
@@ -284,6 +285,7 @@ const CVTailor: React.FC = () => {
     
     setIsFetchingUrl(true);
     setError(null);
+    setUrlError(null);
     try {
       const description = await getJobDescriptionFromUrl(jobPostingUrl);
       if (!controller.signal.aborted) {
@@ -291,7 +293,7 @@ const CVTailor: React.FC = () => {
       }
     } catch (err: any) {
       if (!controller.signal.aborted) {
-          setError(err.message || 'Failed to fetch and parse job description from URL.');
+          setUrlError(err.message || 'Failed to fetch and parse job description from URL.');
       }
     } finally {
       if (fetchControllerRef.current === controller) {
@@ -697,6 +699,7 @@ const CVTailor: React.FC = () => {
     setCoverLetter('');
     setChangesSummary([]);
     setError(null);
+    setUrlError(null);
     setAtsReport(null);
     setSuggestedFilename('Tailored-CV');
     setRefinementRequest('');
@@ -866,7 +869,10 @@ const CVTailor: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-1">Gemini will attempt to access the URL. This works for most public job postings. If it fails, please paste the text below.</p>
             </div>
             <div className="space-y-2 flex-grow flex flex-col">
-                <label htmlFor="job-posting-input" className="font-semibold text-gray-300">Job Posting Text</label>
+                <div className="flex justify-between items-center">
+                    <label htmlFor="job-posting-input" className="font-semibold text-gray-300">Job Posting Text</label>
+                </div>
+                {urlError && <div className="text-sm p-3 bg-red-900/50 text-red-300 rounded-lg border border-red-700/50">{urlError}</div>}
                 <textarea id="job-posting-input" value={jobPosting} onChange={(e) => setJobPosting(e.target.value)} placeholder="...or paste the job description text directly here." className={`${commonTextAreaClass} flex-grow`} />
             </div>
         </div>
